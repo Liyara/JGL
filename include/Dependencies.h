@@ -12,6 +12,12 @@
 #include <Core/jutil.h>
 #include <Maths.h>
 
+/**
+    The following defines are necessary
+    to iron out incompatibilites between
+    JUtil and parts of the C++ Standard
+    Library used by other dependencies.
+**/
 #define _STDINT_H
 #define _UNISTD_H
 

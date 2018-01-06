@@ -190,9 +190,9 @@ namespace jgl {
         glEnable(GL_DEPTH);
         glViewport(0.0f, -(((float)width - (float)height) / 2.0f), (float)width, (float)height * ((float)width / (float)height));
 
-        background = new Quad({0, 0}, {width, unsigned(int((float)height * ((float)width / (float)height)))}, jgl::Color::White);
-        background->setMaterial(Material::Rubber);
         clearColor = Color::White;
+        background = new Quad({0, 0}, {width, unsigned(int((float)height * ((float)width / (float)height)))}, clearColor);
+        background->setMaterial(Material::Rubber);
 
     }
 
@@ -246,7 +246,7 @@ namespace jgl {
     }
 
     void display() {
-        //objects.insert(background, 0);
+        objects.insert(background, 0);
         for (auto &i: objects) {
             i->draw();
         }
@@ -308,25 +308,25 @@ namespace jgl {
         GLfloat winX, winY, winZ;
         GLdouble posX, posY, posZ;
 
+        GLdouble winW = (GLdouble)getWindowSize().x();
+        GLdouble winH = (GLdouble)getWindowSize().y();
+
 
         glGetIntegerv(GL_VIEWPORT, viewport);
         glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
         glGetDoublev(GL_PROJECTION_MATRIX, projection);
         GetCursorPos(&mouse);
         ScreenToClient(glfwGetWin32Window(win), &mouse);
-        winX = (float)mouse.x;
-        winY = (float)mouse.y;
-        winY = (float)viewport[3] - winY;
+        winX = (GLfloat)mouse.x;
+        winY = (GLfloat)mouse.y;
+        winY = (GLfloat)viewport[3] - winY;
         glReadPixels(winX, winY, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &winZ);
         gluUnProject(winX, winY, winZ, modelview, projection, viewport, &posX, &posY, &posZ);
 
-        float yRatio = (float)getWindowSize().y() / ((float)getWindowSize().x() / 2.0f);
+        GLdouble yRatio = winH / ((winW / GLdouble(2.0f)));
 
-        posX = (posX * getWindowSize().x()) / 2.0f;
-        posY = (-posY * ((float)getWindowSize().y() / yRatio)) + (((float)getWindowSize().x() / 2.0f) * (7.0f / 8.0f));
-
-        r[0] = posX;
-        r[1] = posY;
+        r[0] = posX * winW / GLdouble(2.0);
+        r[1] = (-posY * winH / yRatio) + ((winW / GLdouble(2.0)) * GLdouble(7.0 / 8.0));
 
         return r;
     }
