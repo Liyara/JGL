@@ -2,13 +2,16 @@
 #include "jgl.h"
 
 namespace jgl {
-    Quad::Quad(Position p, Dimensions d, Color c) : Object(p, d, c) {
+    Quad::Quad(const Position &p, const Dimensions &d, const Color &c) : Object(p, d, c) {
+        this->drawMode = GL_QUADS;
         formShape();
     }
 
-    jutil::Queue<jutil::Queue<float> > Quad::genVAO() {
+    Quad::Quad() : Object({0, 0}, {0, 0}, Color::White) {}
 
-        jutil::Queue<jutil::Queue<float> > polygon = {
+    jutil::Queue<jutil::Queue<long double> > Quad::genVAO() {
+
+        jutil::Queue<jutil::Queue<long double> > polygon = {
             {-1.0f, -1.0f, 0.0f, 0.0f, 1.0f},
             {1.0f, -1.0f, 0.0f, 1.0f, 1.0f},
             {1.0f, 1.0f, 0.0f, 1.0f, 0.0f},
@@ -19,7 +22,7 @@ namespace jgl {
         return polygon;
     }
 
-    float Quad::area() {
-        return (float)size.x() * (float)size.y();
+    long double Quad::area() const {
+        return static_cast<long double>(size.x()) * static_cast<long double>(size.y());
     }
 }

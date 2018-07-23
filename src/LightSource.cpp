@@ -1,7 +1,7 @@
 #include "LightSource.h"
 
 namespace jgl {
-    LightSource::LightSource(jml::Vector2f p, float i, Color c) {
+    LightSource::LightSource(const jml::Vector2f &p, float i, const Color &c) {
         position[0] = p[0];
         position[1] = p[1];
         intensity = i;

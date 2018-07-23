@@ -1,5 +1,5 @@
-#include "Core.h"
 #include <IO/IO.h>
+#include "jgl.h"
 
 namespace jgl {
     Core::Core() {}
@@ -20,5 +20,20 @@ namespace jgl {
 
     void Core::errorHandler(uint16_t id, const char *msg) {
         jutil::err << id << ": " << msg << jutil::endl;
+    }
+
+    void Core::gameLoop() {
+        while (open()) {
+            clear();
+            pollEvents();
+
+            if (!update()) {
+                jgl::end(0);
+                break;
+            }
+
+            display();
+            pause();
+        }
     }
 }

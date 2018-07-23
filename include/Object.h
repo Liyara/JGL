@@ -1,10 +1,10 @@
 #ifndef OBJECT_H
 #define OBJECT_H
 
-#include "Dependencies.h"
+#include "Shader.h"
 
 typedef jml::Vector2u Dimensions;
-typedef jml::Vector2f Position;
+typedef jml::Vector2ld Position;
 
 #include "color.hpp"
 #include "Material.h"
@@ -14,10 +14,11 @@ namespace jgl {
     class Object {
     public:
 
-        Object(Position, Dimensions, Color);
-        Object &setColor(const Color&);
+        Object(const Position&, const Dimensions&, const Color&);
+        virtual Object &setColor(const Color&);
         virtual Color getColor() const;
         virtual Object &rotate(const jml::Angle&);
+        virtual jml::Angle getRotation() const;
         virtual Object &setRotation(const jml::Angle&);
         virtual Object &setPosition(const Position&);
         virtual Object &setSize(const Dimensions&);
@@ -26,37 +27,54 @@ namespace jgl {
         virtual Object &move(Position);
         virtual Object &scale(jml::Vector2d);
         virtual Object &setTexture(const char*);
+        virtual Object &setTexture(GLuint);
         virtual GLuint *getTexture() const;
         virtual Object &setMaterial(const Material&);
+        virtual jutil::Queue<jutil::Queue<long double> > getVAO() const;
+        virtual long double area() const = 0;
+        virtual Object &setFill(bool);
+        virtual Object &setOutline(uint8_t);
+        virtual uint8_t getOutline() const;
+        virtual Object &setOutlineColor(const Color&);
+        virtual Object &useShader(const Shader&);
+        virtual Object &setMode(GLenum);
+        virtual GLenum getMode() const;
         virtual ~Object();
-        friend void display();
+
+        friend void jgl::display();
 
     protected:
 
-        virtual jutil::Queue<jutil::Queue<float> > genVAO() = 0;
-        Object &formShape();
+        virtual jutil::Queue<jutil::Queue<long double> > genVAO() = 0;
+        jutil::Queue<jutil::Queue<long double> > polygon;
+        virtual Object &formShape();
+        Shader shader;
 
         Position position;
         Dimensions size;
-        Color color;
+        Color color, outlineColor;
 
-    private:
-        Object();
         bool hasTexture;
-        uint32_t texture, vao;
+
         Position initP;
         ILuint image;
         jml::Angle rotation;
-        void readyDrawSequence();
         size_t vertexCount;
-        void draw();
+        virtual void draw();
         bool formed;
-        Object &generateMVP();
+        virtual Object &generateMVP();
         jml::Matrix<float, 4, 4> mvp;
         unsigned components;
         jml::Vector<float, 3> norm;
-        jutil::Queue<jutil::Queue<float> > polygon;
         Material material;
+        uint8_t outline;
+        uint32_t texture, vao;
+        bool fill;
+        GLenum drawMode;
+        Object();
+
+    private:
+
     };
 }
 

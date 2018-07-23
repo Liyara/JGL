@@ -8,9 +8,10 @@ namespace jgl {
     class Core {
     public:
         Core();
-        virtual bool loop() = 0;
+        virtual bool update() = 0;
         virtual void eventHandler(Event);
         virtual void errorHandler(uint16_t, const char*);
+        virtual void gameLoop();
     };
 }
 

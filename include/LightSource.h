@@ -16,7 +16,7 @@ namespace jgl {
         jml::Vector2f position;
         float intensity;
         Color color;
-        LightSource(jml::Vector2f , float = 1, Color = Color(0x00, 0x00, 0x00));
+        LightSource(const jml::Vector2f& , float = 1, const Color& = Color::White);
         LightSource();
         bool operator==(const LightSource&) const;
         bool operator!=(const LightSource&) const;

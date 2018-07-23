@@ -7,64 +7,178 @@
 
 namespace jgl {
 
-    jutil::Queue<LightSource> lights;
-    jutil::Queue<Object*> objects;
+    const char *FRAGMENT_SHADER = R"(
+        #version 330
 
-    GLuint createShader(GLenum eShaderType, const jutil::String &strShaderFile) {
-        char strProto[strShaderFile.size() + 1];
-        strShaderFile.array(strProto);
-        const char *strFileData = strProto;
-        strProto[strShaderFile.size()] = '\0';
-        GLuint shader = glCreateShader(eShaderType);
-        glShaderSource(shader, 1, &strFileData, NULL);
+        #define M_PI 3.1415926535897932384626433832795
 
-        glCompileShader(shader);
+        struct LightSource {
+            vec2 pos;
+            float intensity;
+            vec3 c;
+        };
 
-        GLint status;
-        glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
-        if (status == GL_FALSE) {
-            GLint infoLogLength;
-            glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLogLength);
+        struct Material {
+            vec3 ambient;
+            vec3 diffuse;
+            vec3 specular;
+            float shine;
+        };
 
-            GLchar *strInfoLog = new GLchar[infoLogLength + 1];
-            glGetShaderInfoLog(shader, infoLogLength, NULL, strInfoLog);
+        uniform Material material;
 
-            const char *strShaderType = NULL;
-            switch(eShaderType) {
-            case GL_VERTEX_SHADER: strShaderType = "vertex"; break;
-            case GL_GEOMETRY_SHADER: strShaderType = "geometry"; break;
-            case GL_FRAGMENT_SHADER: strShaderType = "fragment"; break;
+        ///texture in use
+        uniform sampler2D tex;
+
+        ///BOOLEAN -> object has texture?
+        uniform uint hastex;
+
+        ///BOOLEAN -> lighting is enabled?
+        uniform int mode;
+
+        ///BOOLEAN -> object is text?
+        uniform uint isText;
+
+        ///color of fragment if no texture is applied
+        uniform vec4 fcolor;
+
+        ///number of lights in scene
+        uniform int lightCount;
+
+        ///MAX 128 lights in scene
+        uniform LightSource lights[128];
+
+        ///dimensions of window
+        uniform vec2 wsize;
+
+        uniform vec3 normal;
+
+        uniform vec3 cameraPos;
+
+        uniform vec2 offset;
+
+        uniform vec2 rawPosition;
+
+        ///coordinated in texture for fragment
+        in vec2 ftexcoord;
+
+        vec4 jglFragmentAsColor() {
+            return fcolor;
+        }
+
+        vec4 jglFragmentFromTexture() {
+            if (isText > 0u) {
+                vec4 sampled = vec4(1.0, 1.0, 1.0, texture2D(tex, ftexcoord).r);
+                return fcolor * sampled;
+            } else {
+                return texture2D(tex, ftexcoord);
+            }
+        }
+
+        uint jglFragmentIsTextured() {
+            return hastex;
+        }
+
+        int jglFragmentGetLightingMode() {
+            return mode;
+        }
+
+        vec4 jglFragmentApplyLighting(vec4 initColor, int lightingMode) {
+            float rand = gl_FragCoord.x * 353.0 + gl_FragCoord.y * 769.0;
+            float noise = fract(rand / 991.0) / 256.0;
+            vec3 begColor;
+            begColor.rgb = vec3(0.0, 0.0, 0.0);
+            float ambience = 0.02;
+            vec3 ambientLight = ambience * material.ambient;
+            for (int i = 0; i < lightCount; ++i) {
+                vec3 passColor;
+                passColor.rgb = vec3(initColor.r, initColor.g, initColor.b);
+                vec3 fc = vec3(gl_FragCoord.x - (wsize.x / 2), gl_FragCoord.y - (wsize.y / 2), gl_FragCoord.z);
+
+                vec3 lightPos = vec3(lights[i].pos, 1.0f);
+                vec3 lc = lights[i].c;
+
+                float mR = ambience + noise;
+
+                lc.r = max(lc.r, mR);
+                lc.g = max(lc.g, mR);
+                lc.b = max(lc.b, mR);
+
+
+                float intensity = lights[i].intensity * 100;
+                float iA = 1 / sqrt(intensity);
+                float iB = 1 / intensity;
+                float d = distance(lightPos, fc);
+                float attenuation = 1.0 / (1.0 + (iA * d) + (iB * pow(d, 2)));
+                vec3 diffuse = lc * (attenuation * material.diffuse);
+
+                vec3 viewDir = normalize(vec3(lightPos.x, lightPos.y, 1.0) - fc);
+                //vec3 lightDir = normalize(lightPos - fc);
+                //vec3 reflectDir = reflect(-lightDir, normal);
+                float spec = pow(max(dot(viewDir, normal), 0.0),  max(1.0 - material.shine, 0.0));
+                vec3 specular = lc * (spec * material.specular);
+
+                vec3 finalColor;
+
+                if (lightingMode == 2) {
+                    finalColor = (specular + noise) + (diffuse + noise);
+                } else if (lightingMode == 1) {
+                    float t = 0.5;
+                    float m1 = sqrt(pow(passColor.r, 2) + pow(passColor.g, 2) + pow(passColor.b, 2));
+                    float m2 = sqrt(pow(lc.r, 2) + pow(lc.g, 2) + pow(lc.b, 2));
+                    float m = sqrt(pow(m1, 2) + pow(m2, 2));
+                    vec3 baseColor;
+                    baseColor.rgb = vec3(
+                        sqrt((1 - t) * pow(passColor.r, 2) + t * pow(lc.r, 2)) * m,
+                        sqrt((1 - t) * pow(passColor.g, 2) + t * pow(lc.g, 2)) * m,
+                        sqrt((1 - t) * pow(passColor.b, 2) + t * pow(lc.b, 2)) * m
+                    );
+                    finalColor = (baseColor * diffuse);
+                }
+
+                begColor += finalColor;
             }
 
-            jutil::err << "Compile failure in " << strShaderType << "shader: \n" << strInfoLog << jutil::endl;
-            delete[] strInfoLog;
+            return vec4(((ambientLight + noise) + begColor), initColor.a);
+
         }
 
-        return shader;
-    }
+        vec4 jglFragmentShader() {
+            vec4 initColor;
 
-    GLuint createProgram(const jutil::Queue<GLuint> &shaderList) {
-        GLuint program = glCreateProgram();
+            if (hastex > 0u) initColor.rgba = jglFragmentFromTexture();
+            else initColor.rgba = jglFragmentAsColor();
 
-        for(size_t iLoop = 0; iLoop < shaderList.size(); iLoop++) glAttachShader(program, shaderList[iLoop]);
-
-        glLinkProgram(program);
-
-        GLint status;
-        glGetProgramiv (program, GL_LINK_STATUS, &status);
-        if (status == GL_FALSE) {
-            GLint infoLogLength;
-            glGetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLogLength);
-
-            GLchar *strInfoLog = new GLchar[infoLogLength + 1];
-            glGetProgramInfoLog(program, infoLogLength, NULL, strInfoLog);
-            jutil::err << "Link failure: " << strInfoLog << jutil::endl;
-            delete[] strInfoLog;
+            if (mode != -1 && isText <= 0u) return jglFragmentApplyLighting(initColor, mode);
+            else return initColor;
         }
 
-        for(size_t iLoop = 0; iLoop < shaderList.size(); iLoop++) glDetachShader(program, shaderList[iLoop]);
-        return program;
-    }
+    )";
+
+    const char *VERTEX_SHADER = R"(
+        #version 330
+        layout(location=0) in vec4 position;
+        layout(location=1) in vec2 texcoord;
+        out vec2 ftexcoord;
+        uniform vec2 offset;
+        uniform mat4 mvp;
+        uniform float angle;
+        uniform float yRatio;
+
+        vec4 jglVertexShader() {
+            ftexcoord = texcoord;
+            mat4 translation = mat4(
+                vec4(1, 0, 0, offset.x * 2),
+                vec4(0, 1, 0, -offset.y * yRatio),
+                vec4(0, 0, 1, 0),
+                vec4(0, 0, 0, 1)
+            );
+            return (position * mvp * translation);
+        }
+    )";
+
+    jutil::Queue<LightSource> lights;
+    jutil::Queue<Object*> objects;
 
     ///variables
     jutil::String name;
@@ -74,43 +188,22 @@ namespace jgl {
     Color clearColor;
     bool opens = true;
     int lMode = 1;
-    GLuint program;
+    Shader defaultShader;
     Position cameraPos = {0, 0};
     Core *core;
     Object *background;
+    long double fTime, fTimeLim = 0;
+    jutil::Timer timer;
+    GLuint shaderF, shaderV;
 
-    void gameLoop() {
-        while (open()) {
-            pollEvents();
-
-            if (!core->loop()) {
-                jgl::end(0);
-                break;
-            }
-
-            display();
-            clear();
-        }
+    void pause() {
+        jutil::sleep(jml::max(fTimeLim - timer.get(jutil::MILLISECONDS), 0.L));
+        fTime = timer.stop(jutil::NANOSECONDS);
+        timer.start();
     }
 
     bool keyPressed(Event::Key k) {
         return (glfwGetKey(win, (int)k) == GLFW_PRESS);
-    }
-
-    void defaultEventHandler(Event e) {
-        switch(e.type) {
-            case Event::KEY: {
-                switch(e.code) {
-                    case Event::ESCAPE: {
-                        end(0);
-                        break;
-                    }
-                    default: break;
-                }
-                break;
-            }
-            default: break;
-        }
     }
 
     void keyHandle(GLFWwindow*, int c, int, int a, int m) {
@@ -137,9 +230,9 @@ namespace jgl {
         end(0);
     }
 
-    void init(unsigned width, const char *title) {
+    void init(unsigned width, const jutil::String &title) {
 
-        unsigned height = width / (16.0d / 9.0d);
+        unsigned height = width / (16.0 / 9.0);
 
         dimensions[0] = width;
         dimensions[1] = height;
@@ -153,10 +246,16 @@ namespace jgl {
         ilutRenderer(ILUT_OPENGL);
 
         glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
-        glfwWindowHint(GLFW_SAMPLES, 4);
+        glfwWindowHint(GLFW_SAMPLES, 16);
         glEnable(GL_MULTISAMPLE);
+        glEnable(GL_LINE_SMOOTH);
+        glEnable(GL_POLYGON_SMOOTH);
 
-        win = glfwCreateWindow(width, height, title, NULL, NULL);
+
+        char titlecstr[title.size() + 1];
+        title.array(titlecstr);
+
+        win = glfwCreateWindow(width, height, titlecstr, NULL, NULL);
         if (!win) {
             core->errorHandler(2, "Window creation failed");
         }
@@ -173,27 +272,41 @@ namespace jgl {
         glfwSetCursorPosCallback(win, cursorPositionHandle);
         glfwSetWindowCloseCallback(win, closeHandle);
 
-        jutil::String vertex_s = "", frag_s = "", line = "";
-        jutil::File vertex_f("C:\\Users\\Liyara\\Documents\\Programming\\Libraries\\JGL\\shader\\main.vert", jutil::File::Mode::READ);
-        while (!vertex_f.eof()) {
-            vertex_f >> line;
-            vertex_s += line;
-        }
-        jutil::File frag_f("C:\\Users\\Liyara\\Documents\\Programming\\Libraries\\JGL\\shader\\main.frag", jutil::File::Mode::READ);
-        while (!frag_f.eof()) {
-            frag_f >> line;
-            frag_s += line;
-        }
-        program = createProgram({createShader(GL_VERTEX_SHADER, vertex_s), createShader(GL_FRAGMENT_SHADER, frag_s)});
-        glUseProgram(program);
-        glfwSwapInterval(1);
+        shaderF = glCreateShader(GL_FRAGMENT_SHADER);
+        glShaderSource(shaderF, 1, &FRAGMENT_SHADER, NULL);
+        shaderV = glCreateShader(GL_VERTEX_SHADER);
+        glShaderSource(shaderV, 1, &VERTEX_SHADER, NULL);
+
+        glCompileShader(shaderF);
+        glCompileShader(shaderV);
+
+        defaultShader = Shader("C:\\Users\\Liyara\\Documents\\Programming\\Libraries\\JGL\\shader\\main.vert", "C:\\Users\\Liyara\\Documents\\Programming\\Libraries\\JGL\\shader\\main.frag");
+        glfwSwapInterval(0);
         glEnable(GL_DEPTH);
+        glDepthMask(false);
+        glHint(GL_POLYGON_SMOOTH_HINT, GL_NICEST);
+        glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
         glViewport(0.0f, -(((float)width - (float)height) / 2.0f), (float)width, (float)height * ((float)width / (float)height));
 
         clearColor = Color::White;
         background = new Quad({0, 0}, {width, unsigned(int((float)height * ((float)width / (float)height)))}, clearColor);
         background->setMaterial(Material::Rubber);
+        timer.start();
+    }
 
+    GLuint getDefaultFragmentShader() {
+        return shaderF;
+    }
+    GLuint getDefaultVertexShader() {
+        return shaderV;
+    }
+
+    Shader getDefaultShader() {
+        return defaultShader;
+    }
+
+    void setDefaultShader(const Shader &s) {
+        defaultShader = s;
     }
 
     void setMouseVisible(bool v) {
@@ -206,7 +319,7 @@ namespace jgl {
 
     void begin(Core &c) {
         core = &c;
-        gameLoop();
+        core->gameLoop();
     }
 
     int end(int code) {
@@ -220,44 +333,60 @@ namespace jgl {
     }
 
     void clear() {
-        Dimensions d = getWindowSize();
-        unsigned width = d.x(), height = d.y();
-        float cameraY = cameraPos.y(), cameraX = cameraPos.x();
-        glViewport(0.0f + cameraX , -(((float)width - (float)height) / 2.0f) + cameraY, (float)width, (float)height * ((float)width / (float)height));
-        background->setColor(clearColor);
-        background->setPosition({0.0f - cameraX/ 2 , -(((float)width - (float)height) / 2.0f) - cameraY});
+        if (opens) {
+            Dimensions d = getWindowSize();
+            unsigned width = d.x(), height = d.y();
+            float cameraY = cameraPos.y(), cameraX = cameraPos.x();
+            glViewport(0.0f + cameraX , -(((float)width - (float)height) / 2.0f) + cameraY, (float)width, (float)height * ((float)width / (float)height));
+            background->setColor(clearColor);
+            background->setPosition({0.0f - cameraX/ 2 , -(((float)width - (float)height) / 2.0f) - cameraY});
 
-        glClearColor(
-            Color::normal(clearColor.red()),
-            Color::normal(clearColor.green()),
-            Color::normal(clearColor.blue()),
-            Color::normal(clearColor.alpha())
-        );
+            glClearColor(
+                Color::normal(clearColor.red()),
+                Color::normal(clearColor.green()),
+                Color::normal(clearColor.blue()),
+                Color::normal(clearColor.alpha())
+            );
 
-        glClear(GL_COLOR_BUFFER_BIT);
+            glClear(GL_COLOR_BUFFER_BIT);
+
+        }
     }
 
     void render(Object &o) {
-        objects.insert(&o);
+        if (!objects.find(&o)) objects.insert(&o);
     }
 
     void render(jutil::Queue<Object*> objs) {
-        objects.insert(objs);
+        for (auto &i: objs) render(*i);
+    }
+
+    void setFrameTimeLimit(long double lim) {
+        fTimeLim = lim;
     }
 
     void display() {
-        objects.insert(background, 0);
-        for (auto &i: objects) {
-            i->draw();
+        if (opens) {
+            for (auto &i: objects) {
+                i->draw();
+            }
+            objects.clear();
+            shadowMap.clear();
+            glFlush();
+            lights.clear();
+            glfwSwapBuffers(win);
         }
-
-        objects.clear();
-        shadowMap.clear();
-        lights.clear();
-        glfwSwapBuffers(win);
     }
-    void setClearColor(Color c) {
+    void setClearColor(const Color &c) {
         clearColor = c;
+    }
+
+    long double getFrameTime(unsigned t) {
+        long double time = fTime;
+        for (size_t i = 0; i < t; ++i) {
+            time /= 1000.L;
+        }
+        return time;
     }
 
     void pollEvents() {
@@ -272,10 +401,6 @@ namespace jgl {
         lMode = m;
     }
 
-    GLuint getUniform(const char* n) {
-        return glGetUniformLocation(program, n);
-    }
-
     jml::Vector2u getWindowSize() {
         return dimensions;
     }
@@ -285,8 +410,6 @@ namespace jgl {
     }
 
     void useLightSource(LightSource l) {
-        l.position.y() *= 2;
-        l.position.x() *= 2;
         lights.insert(l);
     }
 
@@ -345,7 +468,7 @@ namespace jgl {
         return core;
     }
 
-    jml::Vector2f getCameraPosition() {
+    Position getCameraPosition() {
         return cameraPos;
     }
 }

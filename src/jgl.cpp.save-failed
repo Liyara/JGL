@@ -1,0 +1,319 @@
+#include "jgl.h"
+
+#define GLFW_EXPOSE_NATIVE_WIN32
+#define GLFW_EXPOSE_NATIVE_WGL
+
+#include <GLFW/glfw3native.h>
+
+namespace jgl {
+
+    jutil::Queue<LightSource> lights;
+    jutil::Queue<Object*> objects;
+
+    ///variables
+    jutil::String name;
+    jml::Vector2u dimensions;
+    jutil::Queue<jml::Vector2f> shadowMap;
+    GLFWwindow *win;
+    Color clearColor;
+    bool opens = true;
+    int lMode = 1;
+    Shader defaultShader;
+    Position cameraPos = {0, 0};
+    Core *core;
+    Object *background;
+    long double fTime, fTimeLim = 0;
+    jutil::Timer timer;
+
+    void gameLoop() {
+        while (open()) {
+            pollEvents();
+
+            if (!core->loop() || !opens) {
+                jgl::end(0);
+                break;
+            }
+
+            display();
+            clear();
+        }
+    }
+
+    bool keyPressed(Event::Key k) {
+        return (glfwGetKey(win, (int)k) == GLFW_PRESS);
+    }
+
+    void defaultEventHandler(Event e) {
+        switch(e.type) {
+            case Event::KEY: {
+                switch(e.code) {
+                    case Event::ESCAPE: {
+                        end(0);
+                        break;
+                    }
+                    default: break;
+                }
+                break;
+            }
+            default: break;
+        }
+    }
+
+    void keyHandle(GLFWwindow*, int c, int, int a, int m) {
+        Event e(Event::KEY, c, (Event::Action)a, m);
+        core->eventHandler(e);
+    }
+
+    void mouseHandle(GLFWwindow*, int b, int a, int m) {
+        Event e(Event::MOUSE, b, (Event::Action)a, m);
+        core->eventHandler(e);
+    }
+
+    void scrollHandle(GLFWwindow*, double x, double y) {
+        Event e(Event::SCROLL, x, y);
+        core->eventHandler(e);
+    }
+
+    void cursorPositionHandle(GLFWwindow*, double x, double y) {
+        Event e(Event::CURSOR, x, y);
+        core->eventHandler(e);
+    }
+
+    void closeHandle(GLFWwindow*) {
+        end(0);
+    }
+
+    void init(unsigned width, const jutil::String &title) {
+
+        unsigned height = width / (16.0 / 9.0);
+
+        dimensions[0] = width;
+        dimensions[1] = height;
+        name = title;
+        glewExperimental = GL_TRUE;
+        if (!glfwInit()) {
+            core->errorHandler(1, "GLFW failed to initialize");
+        }
+        ilInit();
+        iluInit();
+        ilutRenderer(ILUT_OPENGL);
+
+        glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+        glfwWindowHint(GLFW_SAMPLES, 4);
+        glEnable(GL_MULTISAMPLE);
+        //glEnable(GL_LINE_SMOOTH);
+        glEnable(GL_POLYGON_SMOOTH);
+
+
+        char titlecstr[title.size() + 1];
+        title.array(titlecstr);
+
+        win = glfwCreateWindow(width, height, titlecstr, NULL, NULL);
+        if (!win) {
+            core->errorHandler(2, "Window creation failed");
+        }
+        glfwMakeContextCurrent(win);
+
+        GLenum lerr = glewInit();
+        if (lerr != GLEW_OK) {
+            core->errorHandler(3, "GLEW failed to initialize");
+        }
+
+        glfwSetKeyCallback(win, keyHandle);
+        glfwSetMouseButtonCallback(win, mouseHandle);
+        glfwSetScrollCallback(win, scrollHandle);
+        glfwSetCursorPosCallback(win, cursorPositionHandle);
+        glfwSetWindowCloseCallback(win, closeHandle);
+
+        defaultShader = Shader("C:\\Users\\Liyara\\Documents\\Programming\\Libraries\\JGL\\shader\\main.vert", "C:\\Users\\Liyara\\Documents\\Programming\\Libraries\\JGL\\shader\\main.frag");
+        glfwSwapInterval(0);
+        glEnable(GL_DEPTH);
+        glDepthMask(false);
+        glHint(GL_POLYGON_SMOOTH_HINT, GL_NICEST);
+        //glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+        glViewport(0.0f, -(((float)width - (float)height) / 2.0f), (float)width, (float)height * ((float)width / (float)height));
+
+        clearColor = Color::White;
+        background = new Quad({0, 0}, {width, unsigned(int((float)height * ((float)width / (float)height)))}, clearColor);
+        background->setMaterial(Material::Rubber);
+
+    }
+
+    Shader getDefaultShader() {
+        return defaultShader;
+    }
+
+    void setDefaultShader(const Shader &s) {
+        defaultShader = s;
+    }
+
+    void setMouseVisible(bool v) {
+        if (v) {
+            glfwSetInputMode(win, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        } else {
+            glfwSetInputMode(win, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+        }
+    }
+
+    void begin(Core &c) {
+        core = &c;
+        gameLoop();
+    }
+
+    int end(int code) {
+        opens = false;
+        glUseProgram(0);
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glfwSetWindowShouldClose(win, true);
+        glfwTerminate();
+        return code;
+    }
+
+    void clear() {
+        if (opens) {
+            Dimensions d = getWindowSize();
+            unsigned width = d.x(), height = d.y();
+            float cameraY = cameraPos.y(), cameraX = cameraPos.x();
+            glViewport(0.0f + cameraX , -(((float)width - (float)height) / 2.0f) + cameraY, (float)width, (float)height * ((float)width / (float)height));
+            background->setColor(clearColor);
+            background->setPosition({0.0f - cameraX/ 2 , -(((float)width - (float)height) / 2.0f) - cameraY});
+
+            glClearColor(
+                Color::normal(clearColor.red()),
+                Color::normal(clearColor.green()),
+                Color::normal(clearColor.blue()),
+                Color::normal(clearColor.alpha())
+            );
+
+            glClear(GL_COLOR_BUFFER_BIT);
+        }
+    }
+
+    void render(Object &o) {
+        objects.insert(&o);
+    }
+
+    void render(jutil::Queue<Object*> objs) {
+        objects.insert(objs);
+    }
+
+    void setFrameTimeLimit(long double lim) {
+        fTimeLim = lim;
+    }
+
+    void display() {
+        if (opens) {
+            timer.start();
+
+            objects.insert(background, 0);
+            for (auto &i: objects) {
+                i->draw();
+            }
+
+            objects.clear();
+            shadowMap.clear();
+            lights.clear();
+            glFlush();
+            glfwSwapBuffers(win);
+            jutil::sleep(jml::max(fTimeLim - timer.get(jutil::MS), 0.L));
+            fTime = timer.stop(jutil::MS);
+        }
+    }
+    void setClearColor(const Color &c) {
+        clearColor = c;
+    }
+
+    long double getFrameTime() {
+        return fTime;
+    }
+
+    void pollEvents() {
+        glfwPollEvents();
+    }
+
+    int lighting() {
+        return lMode;
+    }
+
+    void setLightingMode(int m) {
+        lMode = m;
+    }
+
+    /*GLuint getUniform(const char* n) {
+        return glGetUniformLocation(program, n);
+    }*/
+
+    jml::Vector2u getWindowSize() {
+        return dimensions;
+    }
+    bool open() {
+        if (glfwWindowShouldClose(win)) return false;
+        else return opens;
+    }
+
+    void useLightSource(LightSource l) {
+        l.position.y() *= 2;
+        l.position.x() *= 2;
+        lights.insert(l);
+    }
+
+    jutil::Queue<LightSource> getLightsInScene() {
+        return lights;
+    }
+
+    jutil::Queue<Object*> getObjectsInScene() {
+        return objects;
+    }
+
+    Position getMouseInWorld() {
+        Position r;
+
+        GLint viewport[0x04];
+        GLdouble modelview[0x10];
+        GLdouble projection[0x10];
+        POINT mouse;
+        GLfloat winX, winY, winZ;
+        GLdouble posX, posY, posZ;
+
+        GLdouble winW = (GLdouble)getWindowSize().x();
+        GLdouble winH = (GLdouble)getWindowSize().y();
+
+
+        glGetIntegerv(GL_VIEWPORT, viewport);
+        glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
+        glGetDoublev(GL_PROJECTION_MATRIX, projection);
+        GetCursorPos(&mouse);
+        ScreenToClient(glfwGetWin32Window(win), &mouse);
+        winX = (GLfloat)mouse.x;
+        winY = (GLfloat)mouse.y;
+        winY = (GLfloat)viewport[3] - winY;
+        glReadPixels(winX, winY, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &winZ);
+        gluUnProject(winX, winY, winZ, modelview, projection, viewport, &posX, &posY, &posZ);
+
+        GLdouble yRatio = winH / ((winW / GLdouble(2.0f)));
+
+        r[0] = posX * winW / GLdouble(2.0);
+        r[1] = (-posY * winH / yRatio) + ((winW / GLdouble(2.0)) * GLdouble(7.0 / 8.0));
+
+        return r;
+    }
+
+
+    void moveCamera(float x, float y) {
+        cameraPos.x() += -x;
+        cameraPos.y() += y;
+    }
+
+    void setCameraPosition(float x, float y) {
+        cameraPos = {-x, y};
+    }
+
+    Core *getCore() {
+        return core;
+    }
+
+    Position getCameraPosition() {
+        return cameraPos;
+    }
+}

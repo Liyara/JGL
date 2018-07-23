@@ -10,16 +10,16 @@ namespace jgl {
             RIGHT
         };
 
-        Triangle(Position, Dimensions, Color = Color::White);
-        Triangle(Position, Dimensions, Type);
-        Triangle(Position, Dimensions, Type, Color);
-        Triangle(Position, Dimensions, Color, Type);
-        float area();
+        Triangle(const Position&, const Dimensions&, const Color& = Color::White);
+        Triangle(const Position&, const Dimensions&, Type);
+        Triangle(const Position&, const Dimensions&, Type, const Color&);
+        Triangle(const Position&, const Dimensions&, const Color&, Type);
+        long double area() const;
 
     private:
         Type type;
         Triangle();
-        jutil::Queue<jutil::Queue<float> > genVAO();
+        jutil::Queue<jutil::Queue<long double> > genVAO();
     };
 }
 

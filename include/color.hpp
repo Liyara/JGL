@@ -3,6 +3,7 @@
 
 #include <Core/integers.h>
 #include <Container/Queue.hpp>
+#include <Vector.hpp>
 
 namespace jgl {
     struct Color {
@@ -17,6 +18,8 @@ namespace jgl {
         uint8_t blue() const;
         uint8_t green() const;
         uint8_t alpha() const;
+        jml::Vector<uint8_t, 4> asVector() const;
+        jml::Vector<float, 4> normals() const;
         const static Color
             Black,
             White,

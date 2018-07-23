@@ -2,14 +2,14 @@
 
 namespace jgl {
 
-    Triangle::Triangle(Position p, Dimensions d, Color c) : Object(p, d, c), type(STANDARD) {formShape();}
-    Triangle::Triangle(Position p, Dimensions d, Type t) : Object(p, d, Color::White), type(t) {formShape();}
-    Triangle::Triangle(Position p, Dimensions d, Type t, Color c) : Object(p, d, c), type(t) {formShape();}
-    Triangle::Triangle(Position p, Dimensions d, Color c, Type t) : Object(p, d, c), type(t) {formShape();}
+    Triangle::Triangle(const Position &p, const Dimensions &d, const Color &c) : Object(p, d, c), type(STANDARD) {this->drawMode = GL_TRIANGLES; formShape();}
+    Triangle::Triangle(const Position &p, const Dimensions &d, Type t) : Object(p, d, Color::White), type(t) {this->drawMode = GL_TRIANGLES; formShape();}
+    Triangle::Triangle(const Position &p, const Dimensions &d, Type t, const Color &c) : Object(p, d, c), type(t) {this->drawMode = GL_TRIANGLES; formShape();}
+    Triangle::Triangle(const Position &p, const Dimensions &d, const Color &c, Type t) : Object(p, d, c), type(t) {this->drawMode = GL_TRIANGLES; formShape();}
 
-    jutil::Queue<jutil::Queue<float> > Triangle::genVAO() {
+    jutil::Queue<jutil::Queue<long double> > Triangle::genVAO() {
 
-        jutil::Queue<jutil::Queue<float> > polygon;
+        jutil::Queue<jutil::Queue<long double> > polygon;
 
         switch(type) {
             case STANDARD: {
@@ -34,7 +34,7 @@ namespace jgl {
         return polygon;
     }
 
-    float Triangle::area() {
-        return (1.0f / 2.0f) * (float)size.x() * (float)size.y();
+    long double Triangle::area() const {
+        return (1.0 / 2.0) * static_cast<long double>(size.x()) * static_cast<long double>(size.y());
     }
 }

@@ -6,10 +6,11 @@
 namespace jgl {
     struct Poly : public Object {
     public:
-        Poly(unsigned, Position, Dimensions, Color = Color::White);
+        Poly(unsigned, const Position&, const Dimensions&, const Color& = Color::White);
+        long double area() const;
     protected:
         unsigned points;
-        jutil::Queue<jutil::Queue<float> > genVAO();
+        jutil::Queue<jutil::Queue<long double> > genVAO();
     };
 }
 

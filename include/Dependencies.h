@@ -28,4 +28,7 @@
 #include <png.h>
 #include <IL/ilut.h>
 
+#include <ft2build.h>
+#include FT_FREETYPE_H
+
 #endif // DEPENDENCIES_H

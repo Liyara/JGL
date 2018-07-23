@@ -71,4 +71,10 @@ namespace jgl {
         raw = c.raw;
         return *this;
     }
+    jml::Vector<uint8_t, 4> Color::asVector() const {
+        return {red(), green(), blue(), alpha()};
+    }
+    jml::Vector<float, 4> Color::normals() const {
+        return {normal(red()), normal(green()), normal(blue()), normal(alpha())};
+    }
 }

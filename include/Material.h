@@ -7,7 +7,7 @@ namespace jgl {
     struct Material {
         Color specular;
         float shine;
-        Material(Color, float);
+        Material(const Color&, float);
         Material(const Material&);
         Material();
 

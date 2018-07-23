@@ -34,7 +34,7 @@ namespace jgl {
         )
     ;
 
-    Material::Material(Color s, float sh) : specular(s), shine(sh) {}
+    Material::Material(const Color &s, float sh) : specular(s), shine(sh) {}
     Material::Material(const Material &m) : specular(m.specular), shine(m.shine) {}
     Material::Material() : Material(Material::Metal) {}
 }

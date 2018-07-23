@@ -8,15 +8,18 @@
 #include "Quad.h"
 #include "Triangle.h"
 #include "Poly.h"
-#include "Circle.h"
+#include "Ellipse.h"
 #include "LightSource.h"
+#include "Text.h"
+#include "Line.h"
+#include "Shader.h"
 
 namespace jgl {
 
     ///starts JGL, and opens a window
     ///@param size of window
     ///@param title of window
-    void init(unsigned, const char*);
+    void init(unsigned, const jutil::String&);
 
     void begin(Core&);
 
@@ -30,10 +33,12 @@ namespace jgl {
     ///rendering
     void clear();
     void display();
-    void setClearColor(Color);
+    void setClearColor(const Color&);
     void render(Object&);
 
     void pollEvents();
+
+    void pause();
 
     ///check if lighting is enabled
     int lighting();
@@ -42,7 +47,7 @@ namespace jgl {
     void setLightingMode(int);
 
     ///returns uniform variable location from built-in shader program
-    uint32_t getUniform(const char*);
+    //uint32_t getUniform(const char*);
 
     ///get window size
     jml::Vector2u getWindowSize();
@@ -60,7 +65,7 @@ namespace jgl {
     bool open();
 
     ///return mouse position in world coords
-    jml::Vector2f getMouseInWorld();
+    Position getMouseInWorld();
 
     void moveCamera(float, float);
     void setCameraPosition(float, float);
@@ -70,6 +75,15 @@ namespace jgl {
     bool keyPressed(Event::Key k);
 
     void setMouseVisible(bool);
+
+    long double getFrameTime(unsigned);
+    void setFrameTimeLimit(long double);
+
+    Shader getDefaultShader();
+    void setDefaultShader(const Shader&);
+
+    GLuint getDefaultFragmentShader();
+    GLuint getDefaultVertexShader();
 
 }
 
