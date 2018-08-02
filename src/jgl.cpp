@@ -7,7 +7,7 @@
 
 namespace jgl {
 
-    const char *FRAGMENT_SHADER = R"(
+    const char *FRAGMENT_SHADER = R"glsl(
         #version 330
 
         #define M_PI 3.1415926535897932384626433832795
@@ -153,32 +153,52 @@ namespace jgl {
             else return initColor;
         }
 
-    )";
+    )glsl";
 
-    const char *VERTEX_SHADER = R"(
+    const char *VERTEX_SHADER = R"glsl(
         #version 330
         layout(location=0) in vec4 position;
         layout(location=1) in vec2 texcoord;
         out vec2 ftexcoord;
-        uniform vec2 offset;
-        uniform mat4 mvp;
-        uniform float angle;
-        uniform float yRatio;
+        out vec4 transformedVertex;
+        uniform float rotation;
+        uniform vec2 wSize;
+        uniform vec2 rawPosition;
+        uniform vec2 rawSize;
 
         vec4 jglVertexShader() {
-            ftexcoord = texcoord;
-            mat4 translation = mat4(
-                vec4(1, 0, 0, offset.x * 2),
-                vec4(0, 1, 0, -offset.y * yRatio),
+
+            float aspect = wSize.x / wSize.y;
+
+            float yRatio = wSize.y / (wSize.x / 2.0);
+
+            vec2 fixedSize = vec2(rawSize.x / wSize.x, rawSize.y / wSize.y);
+
+            vec2 offset = vec2(rawPosition.x / wSize.x, rawPosition.y / wSize.y);
+
+            mat4 transformM = mat4(
+                vec4(fixedSize.x, 0, 0, offset.x * 2),
+                vec4(0, fixedSize.y * (2.0 / (aspect * 2.0)), 0, -offset.y * yRatio),
+                vec4(0, 0, -1, 0),
+                vec4(0, 0, 0, 1)
+            );
+
+            mat4 rotateM = mat4(
+                vec4(cos(-rotation), -sin(-rotation), 0, 0),
+                vec4(sin(-rotation), cos(-rotation), 0, 0),
                 vec4(0, 0, 1, 0),
                 vec4(0, 0, 0, 1)
             );
-            return (position * mvp * translation);
+
+            transformM = rotateM * transformM;
+
+            transformedVertex = position * transformM;
+            return transformedVertex;
         }
-    )";
+    )glsl";
 
     jutil::Queue<LightSource> lights;
-    jutil::Queue<Object*> objects;
+    //jutil::Queue<Object*> objects;
 
     ///variables
     jutil::String name;
@@ -230,6 +250,10 @@ namespace jgl {
         end(0);
     }
 
+    GLuint getVertexOutputsForLastDraw() {
+
+    }
+
     void init(unsigned width, const jutil::String &title) {
 
         unsigned height = width / (16.0 / 9.0);
@@ -246,8 +270,10 @@ namespace jgl {
         ilutRenderer(ILUT_OPENGL);
 
         glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
-        glfwWindowHint(GLFW_SAMPLES, 16);
-        glEnable(GL_MULTISAMPLE);
+        glfwWindowHint(GLFW_SAMPLES, 4);
+        glEnable(GL_BLEND);
+        glDisable(GL_DEPTH_TEST);
+        glDepthMask(false);
         glEnable(GL_LINE_SMOOTH);
         glEnable(GL_POLYGON_SMOOTH);
 
@@ -280,12 +306,11 @@ namespace jgl {
         glCompileShader(shaderF);
         glCompileShader(shaderV);
 
+        glEnable(GL_MULTISAMPLE);
+
         defaultShader = Shader("C:\\Users\\Liyara\\Documents\\Programming\\Libraries\\JGL\\shader\\main.vert", "C:\\Users\\Liyara\\Documents\\Programming\\Libraries\\JGL\\shader\\main.frag");
         glfwSwapInterval(0);
-        glEnable(GL_DEPTH);
-        glDepthMask(false);
-        glHint(GL_POLYGON_SMOOTH_HINT, GL_NICEST);
-        glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+
         glViewport(0.0f, -(((float)width - (float)height) / 2.0f), (float)width, (float)height * ((float)width / (float)height));
 
         clearColor = Color::White;
@@ -338,8 +363,6 @@ namespace jgl {
             unsigned width = d.x(), height = d.y();
             float cameraY = cameraPos.y(), cameraX = cameraPos.x();
             glViewport(0.0f + cameraX , -(((float)width - (float)height) / 2.0f) + cameraY, (float)width, (float)height * ((float)width / (float)height));
-            background->setColor(clearColor);
-            background->setPosition({0.0f - cameraX/ 2 , -(((float)width - (float)height) / 2.0f) - cameraY});
 
             glClearColor(
                 Color::normal(clearColor.red()),
@@ -353,30 +376,17 @@ namespace jgl {
         }
     }
 
-    void render(Object &o) {
-        if (!objects.find(&o)) objects.insert(&o);
-    }
-
-    void render(jutil::Queue<Object*> objs) {
-        for (auto &i: objs) render(*i);
-    }
-
     void setFrameTimeLimit(long double lim) {
         fTimeLim = lim;
     }
 
     void display() {
         if (opens) {
-            for (auto &i: objects) {
-                i->draw();
-            }
-            objects.clear();
-            shadowMap.clear();
-            glFlush();
             lights.clear();
             glfwSwapBuffers(win);
         }
     }
+
     void setClearColor(const Color &c) {
         clearColor = c;
     }
@@ -415,10 +425,6 @@ namespace jgl {
 
     jutil::Queue<LightSource> getLightsInScene() {
         return lights;
-    }
-
-    jutil::Queue<Object*> getObjectsInScene() {
-        return objects;
     }
 
     Position getMouseInWorld() {

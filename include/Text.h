@@ -26,7 +26,7 @@ namespace jgl {
 
         jutil::Queue<jutil::Queue<long double> > genVAO();
         void draw() override;
-        Object &generateMVP() override;
+        Object &generateMVP();
         Object &formShape() override;
         Text &clear();
     };

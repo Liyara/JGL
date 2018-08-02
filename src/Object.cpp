@@ -16,7 +16,22 @@ namespace jgl {
         fill(true),
         outlineColor(c),
         shader(getDefaultShader()),
-        drawMode(GL_POLYGON) {}
+        drawMode(GL_POLYGON) {
+            uniforms.insert(shader.getUniformID("hastex"));
+            uniforms.insert(shader.getUniformID("mode"));
+            uniforms.insert(shader.getUniformID("wSize"));
+            uniforms.insert(shader.getUniformID("rawPosition"));
+            uniforms.insert(shader.getUniformID("rawSize"));
+            uniforms.insert(shader.getUniformID("rotation"));
+            uniforms.insert(shader.getUniformID("fcolor"));
+            uniforms.insert(shader.getUniformID("lightCount"));
+            uniforms.insert(shader.getUniformID("normal"));
+            uniforms.insert(shader.getUniformID("cameraPos"));
+            uniforms.insert(shader.getUniformID("material.ambient"));
+            uniforms.insert(shader.getUniformID("material.diffuse"));
+            uniforms.insert(shader.getUniformID("material.specular"));
+            uniforms.insert(shader.getUniformID("maetrial.shine"));
+        }
 
     Object::Object() : Object({0, 0}, {0, 0}, Color::White) {}
 
@@ -24,18 +39,20 @@ namespace jgl {
 
         auto colorNormal = color.normals();
 
-        Shader::setActive(shader);
+        Shader::setActive(&shader);
         if (!formed) {
-            jgl::getCore()->errorHandler(10, "Attempted drawing of ill-formed object.");
+            formShape();
         }
-        shader.setUniform("hastex", (unsigned)hasTexture);
-        shader.setUniform("mode", lighting());
-        shader.setUniform("wsize", getWindowSize());
 
-        if (lighting()) {
+        shader.setUniform(uniforms[0], (unsigned)hasTexture);
+
+        shader.setUniform(uniforms[1], lighting());
+        shader.setUniform(uniforms[2], static_cast<jml::Vector2f>(getWindowSize()));
+
+        if (lighting() != JGL_LIGHTING_NONE) {
             jml::Vector3f nColor(colorNormal);
             auto lights = getLightsInScene();
-            shader.setUniform("lightCount", (int)lights.size());
+            shader.setUniform(uniforms[7], (int)lights.size());
             for (size_t i = 0; i < lights.size(); ++i) {
 
                 auto &light = lights[i];
@@ -67,26 +84,24 @@ namespace jgl {
 
             }
 
-            shader.setUniform("normal", jml::Vector3u{0, 0, 1});
-            shader.setUniform("cameraPos", jml::Vector3d(getCameraPosition(), 1.0));
+            shader.setUniform(uniforms[8], jml::Vector3u{0, 0, 1});
+            shader.setUniform(uniforms[9], jml::Vector3d(getCameraPosition(), 1.0));
 
-            shader.setUniform("material.ambient", nColor);
-            shader.setUniform("material.diffuse", nColor);
-            shader.setUniform("material.specular", jml::Vector3f(material.specular.normals()));
-            shader.setUniform("material.shine", material.shine);
+            shader.setUniform(uniforms[10], nColor);
+            shader.setUniform(uniforms[11], nColor);
+            shader.setUniform(uniforms[12], jml::Vector3f(material.specular.normals()));
+            shader.setUniform(uniforms[13], material.shine);
         }
 
-        shader.setUniform("offset", jml::Vector2f{static_cast<float>(position.x() / getWindowSize().x()), static_cast<float>(position.y() / getWindowSize().y())});
-        shader.setUniform("rawPosition", position);
 
-        shader.setUniform("yRatio", (float)getWindowSize().y() / ((float)getWindowSize().x() / 2.0f));
-        shader.setUniform("tex", 0);
 
-        generateMVP();
-        shader.setUniform("mvp", mvp);
+        shader.setUniform(uniforms[3], static_cast<jml::Vector2f>(position));
+        shader.setUniform(uniforms[4], static_cast<jml::Vector2f>(size));
+        shader.setUniform(uniforms[5], static_cast<float>(static_cast<long double>(rotation)));
 
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, texture);
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
         glBindBuffer(GL_ARRAY_BUFFER, vao);
         glEnableVertexAttribArray(0);
@@ -95,17 +110,19 @@ namespace jgl {
         glPolygonMode(GL_FRONT, GL_FILL);
 
         if (hasTexture) {
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, texture);
             glEnableVertexAttribArray(1);
             glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, components * sizeof(float), (char*)0 + 3 * sizeof(float));
         }
 
         if (fill) {
-            shader.setUniform("fcolor", colorNormal);
+            shader.setUniform(uniforms[6], colorNormal);
             glDrawArrays(drawMode, 0, vertexCount);
         }
 
         if (outline) {
-            shader.setUniform("fcolor", outlineColor.normals());
+            shader.setUniform(uniforms[6], outlineColor.normals());
             glLineWidth(outline);
             glPolygonMode(GL_FRONT, GL_LINE);
             glDrawArrays(GL_POLYGON, 0, vertexCount);
@@ -113,7 +130,7 @@ namespace jgl {
         }
 
         glBindBuffer(GL_ARRAY_BUFFER, 0);
-        Shader::setActive(0);
+        Shader::setActive(NULL);
     }
 
     Object &Object::setRotation(const jml::Angle &angle) {
@@ -221,21 +238,15 @@ namespace jgl {
         polygon = genVAO();
 
         components = polygon[0].size();
-
-        jutil::Queue<float> unpackedPolygon;
-
         vertexCount = polygon.size();
+
+        unpackedPolygon.reserve(vertexCount * components);
 
         for (auto &i: polygon) {
             i[0] *= ASPECT;
             for (auto &j: i) {
                 unpackedPolygon.insert(j);
             }
-        }
-        size_t num = sizeof(float) * unpackedPolygon.size();
-        float *vp = (float*)malloc(num);
-        for (uint16_t i = 0; i < unpackedPolygon.size(); ++i) {
-            vp[i] = unpackedPolygon[i];
         }
 
         ///Enable use of object within OPENGL
@@ -245,7 +256,7 @@ namespace jgl {
         glBindBuffer(GL_ARRAY_BUFFER, vao);
 
         ///allocate memory to the object we've just bound in "GLARRAY_BUFFER" in the GPU
-        glBufferData(GL_ARRAY_BUFFER, vertexCount * components * sizeof(float), vp, GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, vertexCount * components * sizeof(float), &(unpackedPolygon[0]), GL_STATIC_DRAW);
 
         ///unbind
         glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -260,24 +271,8 @@ namespace jgl {
         return *this;
     }
 
-    Object &Object::generateMVP() {
-        if (formed) {
-            GLint m_viewport[4];
-            glGetIntegerv(GL_VIEWPORT, m_viewport);
+    jutil::Queue<jml::Vertex> Object::getVertices() {
 
-            jml::Vector2f s = {(float)size.x() / (float)m_viewport[2], (float)size.y() / (float)m_viewport[3]};
-            const float ASPECT = ((float)m_viewport[2] / (float)m_viewport[3]);
-
-            jml::Transformation model = jml::identity<long double, 4>();
-            model = jml::scale({s, 1.0L}, model);
-            model = jml::rotate(rotation, {0, 0, 1}, model);
-            jml::Transformation projection = jml::ortho(-ASPECT, ASPECT, -1.0L, 1.0L, -1.0L, 1.0L);
-
-            mvp = projection * model;
-
-        }
-
-        return *this;
     }
 
     jutil::Queue<jutil::Queue<long double> > Object::getVAO() const {

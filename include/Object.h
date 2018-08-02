@@ -39,7 +39,10 @@ namespace jgl {
         virtual Object &useShader(const Shader&);
         virtual Object &setMode(GLenum);
         virtual GLenum getMode() const;
+        virtual jutil::Queue<jml::Vertex> getVertices();
         virtual ~Object();
+
+        virtual void draw();
 
         friend void jgl::display();
 
@@ -47,6 +50,7 @@ namespace jgl {
 
         virtual jutil::Queue<jutil::Queue<long double> > genVAO() = 0;
         jutil::Queue<jutil::Queue<long double> > polygon;
+        jutil::Queue<float> unpackedPolygon;
         virtual Object &formShape();
         Shader shader;
 
@@ -60,17 +64,16 @@ namespace jgl {
         ILuint image;
         jml::Angle rotation;
         size_t vertexCount;
-        virtual void draw();
+
         bool formed;
-        virtual Object &generateMVP();
-        jml::Matrix<float, 4, 4> mvp;
         unsigned components;
         jml::Vector<float, 3> norm;
         Material material;
         uint8_t outline;
-        uint32_t texture, vao;
+        uint32_t texture, vao, tbo;
         bool fill;
         GLenum drawMode;
+        jutil::Queue<GLuint> uniforms;
         Object();
 
     private:

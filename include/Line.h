@@ -29,7 +29,7 @@ namespace jgl {
 
     private:
         jutil::Queue<jutil::Queue<long double> > genVAO() override;
-        Object &generateMVP() override;
+        Object &generateMVP();
         Position a, b;
         unsigned thickness;
 

@@ -3,7 +3,7 @@
 
 namespace jgl {
 
-    Shader Shader::active;
+    Shader *Shader::active;
 
     Shader::Shader() : Shader(0) {}
     Shader::Shader(GLuint p) : frag(0), vert(0), program(p) {}
@@ -86,17 +86,20 @@ namespace jgl {
         return program;
     }
 
-    bool Shader::hasUniform(const jutil::String &s) const {
-        char cstrName[s.size() + 1];
-        s.array(cstrName);
+    bool Shader::hasUniform(const char *cstrName) const {
         return (glGetUniformLocation(program, cstrName) == -1);
     }
 
-    void Shader::setActive(const Shader &s) {
-        active = s;
-        glUseProgram(s.program);
+    GLuint Shader::getUniformID(const char *cstrName) const {
+        return glGetUniformLocation(program, cstrName);
     }
-    Shader Shader::getActive() {
+
+    void Shader::setActive(Shader *s) {
+        active = s;
+        if (s) glUseProgram(s->program);
+        else glUseProgram(0);
+    }
+    Shader *Shader::getActive() {
         return active;
     }
     Shader::~Shader() {}

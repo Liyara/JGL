@@ -34,7 +34,6 @@ namespace jgl {
     void clear();
     void display();
     void setClearColor(const Color&);
-    void render(Object&);
 
     void pollEvents();
 
@@ -57,9 +56,6 @@ namespace jgl {
 
     ///returns vector containing all in-use light sources
     jutil::Queue<LightSource> getLightsInScene();
-
-    ///returns vector containing all in-use light objects
-    jutil::Queue<Object*> getObjectsInScene();
 
     ///returns true if the window should not close.
     bool open();
@@ -84,6 +80,8 @@ namespace jgl {
 
     GLuint getDefaultFragmentShader();
     GLuint getDefaultVertexShader();
+
+    GLuint getVertexOutputsForLastDraw();
 
 }
 

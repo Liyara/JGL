@@ -93,13 +93,13 @@ namespace jgl {
     void Character::draw() {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        Shader::setActive(this->shader);
+        Shader::setActive(&(this->shader));
         this->shader.setUniform("isText", (unsigned)true);
-        Shader::setActive(0);
+        Shader::setActive(NULL);
         Quad::draw();
-        Shader::setActive(this->shader);
+        Shader::setActive(&(this->shader));
         this->shader.setUniform("isText", (unsigned)false);
-        Shader::setActive(0);
+        Shader::setActive(NULL);
         glDisable(GL_BLEND);
         glBlendFunc(0, 0);
     }

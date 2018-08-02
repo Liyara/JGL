@@ -80,7 +80,7 @@ namespace jgl {
         glLineWidth(1);
     }
     Object &Line::generateMVP() {
-        mvp = jml::identity<float, 4>();
+
         return *this;
     }
 }
