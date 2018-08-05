@@ -2,6 +2,9 @@
 #include "Matrix.h"
 #include <Maths.h>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 namespace jgl {
     Object::Object(const Position &p, const Dimensions &d, const Color &c) :
         position(p),
@@ -100,14 +103,17 @@ namespace jgl {
         shader.setUniform(uniforms[5], static_cast<float>(static_cast<long double>(rotation)));
 
 
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        //glEnable(GL_BLEND);
+        //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
         glBindBuffer(GL_ARRAY_BUFFER, vao);
         glEnableVertexAttribArray(0);
 
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, components * sizeof(float), NULL);
         glPolygonMode(GL_FRONT, GL_FILL);
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
         if (hasTexture) {
             glActiveTexture(GL_TEXTURE0);
@@ -175,43 +181,44 @@ namespace jgl {
         return *this;
     }
     Object &Object::setTexture(const char *str) {
-        ilGenImages(1, &image);
-        ilBindImage(image);
-        if (ilLoadImage(str)) {
-            void *data = ilGetData();
-            int
-                iw = ilGetInteger(IL_IMAGE_WIDTH),
-                ih = ilGetInteger(IL_IMAGE_HEIGHT),
-                it = ilGetInteger(IL_IMAGE_TYPE),
-                id = ilGetInteger(IL_IMAGE_FORMAT)
-            ;
 
-            glGenTextures(1, &texture);
-            glBindTexture(GL_TEXTURE_2D, texture);
+        glGenTextures(1, &texture);
+        glBindTexture(GL_TEXTURE_2D, texture);
 
-            glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_FALSE);
-            glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-            glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
-            glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-            glTexImage2D(GL_TEXTURE_2D, 0, id, iw, ih, 0, id, it, data);
+        int width, height, nrChannels;
+        unsigned char *data = stbi_load(str, &width, &height, &nrChannels, 0);
+
+        GLenum channels;
+
+        if (nrChannels == 3) channels = GL_RGB;
+        else if (nrChannels == 4) channels = GL_RGBA;
+
+        glTexImage2D(GL_TEXTURE_2D, 0, channels, width, height, 0, channels, GL_UNSIGNED_BYTE, data);
+
+        if (data) {
 
             glEnable(GL_BLEND);
             glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
             glGenerateMipmap(GL_TEXTURE_2D);
 
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glBindTexture(GL_TEXTURE_2D, 0);
 
+            stbi_image_free(data);
+
+            hasTexture = true;
         } else {
-
+            jutil::String err = jutil::String("Failed to load texture ") + jutil::String(str);
+            char errC[err.size() + 1];
+            err.array(errC);
+            jgl::getCore()->errorHandler(0xf0,  errC);
         }
-        ilBindImage(0);
-        hasTexture = true;
+
         return *this;
     }
 

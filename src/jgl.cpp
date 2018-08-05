@@ -71,7 +71,7 @@ namespace jgl {
                 vec4 sampled = vec4(1.0, 1.0, 1.0, texture2D(tex, ftexcoord).r);
                 return fcolor * sampled;
             } else {
-                return texture2D(tex, ftexcoord);
+                return texture2D(tex, ftexcoord).rgba;
             }
         }
 
@@ -147,10 +147,10 @@ namespace jgl {
             vec4 initColor;
 
             if (hastex > 0u) initColor.rgba = jglFragmentFromTexture();
-            else initColor.rgba = jglFragmentAsColor();
+            else initColor.rgba = jglFragmentAsColor().rgba;
 
             if (mode != -1 && isText <= 0u) return jglFragmentApplyLighting(initColor, mode);
-            else return initColor;
+            else return initColor.rgba;
         }
 
     )glsl";
@@ -176,10 +176,10 @@ namespace jgl {
 
             vec2 offset = vec2(rawPosition.x / wSize.x, rawPosition.y / wSize.y);
 
-            mat4 transformM = mat4(
-                vec4(fixedSize.x, 0, 0, offset.x * 2),
-                vec4(0, fixedSize.y * (2.0 / (aspect * 2.0)), 0, -offset.y * yRatio),
-                vec4(0, 0, -1, 0),
+            mat4 translateM = mat4(
+                vec4(1, 0, 0, offset.x * 2),
+                vec4(0, 1, 0, -offset.y * yRatio),
+                vec4(0, 0, 1, 0),
                 vec4(0, 0, 0, 1)
             );
 
@@ -190,9 +190,24 @@ namespace jgl {
                 vec4(0, 0, 0, 1)
             );
 
-            transformM = rotateM * transformM;
+            mat4 scaleM = mat4(
+                vec4(fixedSize.x, 0, 0, 0),
+                vec4(0, fixedSize.y, 0, 0),
+                vec4(0, 0, 1, 0),
+                vec4(0, 0, 0, 1)
+            );
 
-            transformedVertex = position * transformM;
+            mat4 projectM = mat4(
+                vec4(1, 0, 0, 0),
+                vec4(0, 2.0 / (aspect + aspect), 0, 0),
+                vec4(0, 0, -1, 0),
+                vec4(0, 0, 0, 1)
+            );
+
+            transformedVertex = position * projectM * scaleM * rotateM * translateM;
+
+            ftexcoord = texcoord;
+
             return transformedVertex;
         }
     )glsl";
