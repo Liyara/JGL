@@ -16,6 +16,19 @@ namespace jgl {
         raw = 0x00000000 | a | (b << 8) | (g << 16) | (r << 24);
 
     }
+    Color::Color(uint32_t rgba) {
+        raw = rgba;
+    }
+    Color::operator uint32_t() const {
+        return raw;
+    }
+    Color::operator jutil::String() {
+        return "rgba(" + jutil::String(red()) + ", " + jutil::String(green()) + ", " + jutil::String(blue()) + ", " + jutil::String(alpha()) + ")";
+    }
+
+    Color::operator const jutil::String() const {
+        return "rgba(" + jutil::String(red()) + ", " + jutil::String(green()) + ", " + jutil::String(blue()) + ", " + jutil::String(alpha()) + ")";
+    }
     Color Color::mixture(Color a, Color b) {
         jutil::Queue<float> colors = {
             (float)a.red(), (float)a.green(), (float)a.blue(), (float)a.alpha(),

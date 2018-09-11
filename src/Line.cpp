@@ -66,17 +66,17 @@ namespace jgl {
         return thickness;
     }
     jutil::Queue<jutil::Queue<long double> > Line::genVAO() {
-        auto s = jgl::getWindowSize();
-        float yRatio = (float)getWindowSize().y() / ((float)getWindowSize().x() / 2.0f);
+        /*auto s = jgl::getWindow().getSize();
+        float yRatio = (float)s.y() / ((float)s.x() / 2.0f);
         jutil::Queue<jutil::Queue<long double> > r = {
             {(a.x() / s.x()) * 2.0, (-a.y() / s.y()) * yRatio, 0.0, 0.0, 0.0},
             {(b.x() / s.x()) * 2.0, (-b.y() / s.y()) * yRatio, 0.0, 1.0, 1.0}
         };
-        return r;
+        return r;*/
     }
-    void Line::draw() {
+    void Line::render() {
         glLineWidth(thickness);
-        Object::draw();
+        Object::render();
         glLineWidth(1);
     }
     Object &Line::generateMVP() {

@@ -8,6 +8,7 @@ namespace jgl {
 
     jutil::Queue<jutil::Queue<long double> > Poly::genVAO() {
         jutil::Queue<jutil::Queue<long double> > polygon;
+
         float angle, xangle = JML_PI / points;
         for (uint16_t i = 0; i < points; ++i) {
             angle = xangle * i * 2;

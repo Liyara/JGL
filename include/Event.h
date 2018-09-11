@@ -126,15 +126,25 @@ namespace jgl {
             KEY,
             MOUSE,
             SCROLL,
-            CURSOR
+            CURSOR,
+            RESIZE,
+            CLOSE,
+            MOVE,
+            GAIN_FOCUS,
+            LOSE_FOCUS,
+            CURSOR_ENTER,
+            CURSOR_LEAVE
         };
         double x, y;
+        int width, height;
         int code;
         Action action;
         int mods;
         Type type;
-        Event(Type, int, Action, int); ///0, 1, 2
-        Event(Type, double, double); ///Cursor move event (3)
+        Event(Type, int, Action, int);
+        Event(Type, double, double);
+        Event(Type, int,int);
+        Event(Type);
     };
 }
 

@@ -1,34 +1,22 @@
 #ifndef OBJECT_H
 #define OBJECT_H
 
+#include "Window.h"
 #include "Shader.h"
-
-typedef jml::Vector2u Dimensions;
-typedef jml::Vector2ld Position;
-
-#include "color.hpp"
 #include "Material.h"
+#include "TextureManifold.h"
+
+#define _JGL_TEXTURE_SEGMENT            GL_TEXTURE0
+#define _JGL_TEXTURE_SEGMENT_LENGTH     0x10
 
 namespace jgl {
 
-    class Object {
+    class Object : public Renderable, public Transformable, public TextureManifold {
     public:
 
         Object(const Position&, const Dimensions&, const Color&);
         virtual Object &setColor(const Color&);
         virtual Color getColor() const;
-        virtual Object &rotate(const jml::Angle&);
-        virtual jml::Angle getRotation() const;
-        virtual Object &setRotation(const jml::Angle&);
-        virtual Object &setPosition(const Position&);
-        virtual Object &setSize(const Dimensions&);
-        virtual Dimensions getSize() const;
-        virtual Position getPosition() const;
-        virtual Object &move(Position);
-        virtual Object &scale(jml::Vector2d);
-        virtual Object &setTexture(const char*);
-        virtual Object &setTexture(GLuint);
-        virtual GLuint *getTexture() const;
         virtual Object &setMaterial(const Material&);
         virtual jutil::Queue<jutil::Queue<long double> > getVAO() const;
         virtual long double area() const = 0;
@@ -40,43 +28,55 @@ namespace jgl {
         virtual Object &setMode(GLenum);
         virtual GLenum getMode() const;
         virtual jutil::Queue<jml::Vertex> getVertices();
+        virtual Object &setOrigin(const jml::Vector2f&);
+        virtual const jml::Vector2f &getOrigin() const;
+
         virtual ~Object();
 
-        virtual void draw();
+        virtual void render() override;
+        virtual void render(const Screen*);
 
         friend void jgl::display();
 
     protected:
 
         virtual jutil::Queue<jutil::Queue<long double> > genVAO() = 0;
+        virtual Object &formShape();
+        virtual void loadPolygon();
+
+
+        Material material;
+
         jutil::Queue<jutil::Queue<long double> > polygon;
         jutil::Queue<float> unpackedPolygon;
-        virtual Object &formShape();
+        jutil::Queue<GLuint> uniforms;
+        jutil::Queue<uint32_t> ubos;
+
         Shader shader;
 
-        Position position;
-        Dimensions size;
+        jml::Vector<float, 3> norm;
+        jml::Vector2f origin;
+
         Color color, outlineColor;
 
-        bool hasTexture;
-
-        Position initP;
-        ILuint image;
-        jml::Angle rotation;
         size_t vertexCount;
-
-        bool formed;
         unsigned components;
-        jml::Vector<float, 3> norm;
-        Material material;
-        uint8_t outline;
-        uint32_t texture, vao, tbo;
-        bool fill;
+        uint8_t outline, tMode;
+        uint32_t vbo, fbo;
+
+        bool formed, fill, valid;
+
         GLenum drawMode;
-        jutil::Queue<GLuint> uniforms;
+
+        struct FragmentDrawData;
+        struct VertexDrawData;
+        struct TextureDrawData;
+
         Object();
 
     private:
+
+
 
     };
 }

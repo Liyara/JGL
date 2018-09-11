@@ -2,28 +2,33 @@
 #define JGL_CHARACTER_H
 
 #include "Quad.h"
-#include "Font.h"
 
 namespace jgl {
-    class Character : public Quad, public jutil::NonCopyable {
+    class Character: public jutil::NonCopyable {
     public:
-        Character(char, const Position&, const Font&, const Color& = Color::White);
+        Character(FT_Library, jutil::String, char, unsigned);
 
         char decode() const;
         Position getOrigin() const;
         Position getBearing() const;
         Position nextPosition() const;
-        Font getFont() const;
+        uint32_t getTexture() const;
+        Dimensions getSize() const;
+
+        unsigned getFontSize() const;
+        jutil::String getFontFile() const;
+
+        void draw();
 
         virtual ~Character();
 
     private:
         char raw;
         Position origin, bearing, next;
-        Font font;
-
-        void draw();
-        friend class Text;
+        Dimensions size;
+        jutil::String file;
+        unsigned fSize;
+        uint32_t texture;
     };
 }
 

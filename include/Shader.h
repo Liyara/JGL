@@ -3,35 +3,54 @@
 
 #include "Dependencies.h"
 
-#define JGL_SET_UNIFORM_VALS_STR(type, name, queue) switch(queue.getLength()) {\
+#define SHADER_OP_START \
+    bool __changed_ = false;\
+    Shader *__sAct_;\
+    if (getActive() != this) {\
+        __sAct_ = getActive();\
+        setActive(this);\
+        __changed_ = true;\
+    }
+
+#define SHADER_OP_END if (__changed_) setActive(__sAct_);
+
+#define JGL_SET_UNIFORM_VALS_STR(type, name, queue) SHADER_OP_START \
+    switch(queue.getLength()) {\
     case 1: glUniform1##type(glGetUniformLocation(program, name), queue[0]); break;\
     case 2: glUniform2##type(glGetUniformLocation(program, name), queue[0], queue[1]); break;\
     case 3: glUniform3##type(glGetUniformLocation(program, name), queue[0], queue[1], queue[2]); break;\
     case 4: glUniform4##type(glGetUniformLocation(program, name), queue[0], queue[1], queue[2], queue[3]); break;\
     default: break;\
-}
+    }\
+SHADER_OP_END
 
-#define JGL_SET_UNIFORM_MATRIX_STR(size, str, matrix) switch(size) {\
+#define JGL_SET_UNIFORM_MATRIX_STR(size, str, matrix) SHADER_OP_START \
+    switch(size) {\
     case 2: glUniformMatrix2fv(glGetUniformLocation(program, str), 1, GL_TRUE, matrix); break;\
     case 3: glUniformMatrix3fv(glGetUniformLocation(program, str), 1, GL_TRUE, matrix); break;\
     case 4: glUniformMatrix4fv(glGetUniformLocation(program, str), 1, GL_TRUE, matrix); break;\
     default: break;\
-}
+    } \
+SHADER_OP_END
 
-#define JGL_SET_UNIFORM_VALS(type, location, queue) switch(queue.getLength()) {\
+#define JGL_SET_UNIFORM_VALS(type, location, queue) SHADER_OP_START \
+    switch(queue.getLength()) {\
     case 1: glUniform1##type(location, queue[0]); break;\
     case 2: glUniform2##type(location, queue[0], queue[1]); break;\
     case 3: glUniform3##type(location, queue[0], queue[1], queue[2]); break;\
     case 4: glUniform4##type(location, queue[0], queue[1], queue[2], queue[3]); break;\
     default: break;\
-}
+    } \
+SHADER_OP_END
 
-#define JGL_SET_UNIFORM_MATRIX(size, location, matrix) switch(size) {\
+#define JGL_SET_UNIFORM_MATRIX(size, location, matrix) SHADER_OP_START \
+    switch(size) {\
     case 2: glUniformMatrix2fv(location, 1, GL_TRUE, matrix); break;\
     case 3: glUniformMatrix3fv(location, 1, GL_TRUE, matrix); break;\
     case 4: glUniformMatrix4fv(location, 1, GL_TRUE, matrix); break;\
     default: break;\
-}
+    } \
+SHADER_OP_END
 
 namespace jgl {
     class Shader {
@@ -42,6 +61,11 @@ namespace jgl {
         Shader(const jutil::String&, const jutil::String&);
         Shader(GLuint, const jutil::String&);
         Shader(const jutil::String&, GLuint);
+        Shader(const jutil::File&, const jutil::File&);
+        Shader(const jutil::File&, const jutil::String&);
+        Shader(const jutil::File&, GLuint);
+        Shader(const jutil::String&, const jutil::File&);
+        Shader(GLuint, const jutil::File&);
         Shader(const Shader&);
         Shader(Shader&&);
         Shader &operator=(const Shader&);
@@ -122,7 +146,8 @@ namespace jgl {
         virtual ~Shader();
     private:
 
-        GLuint createShader(GLenum, const jutil::String&);
+        GLuint createShader(GLenum, jutil::String);
+        GLuint createShader(GLenum, const jutil::File&);
         GLuint createProgram();
         GLuint frag, vert, program;
         static Shader *active;

@@ -9,17 +9,18 @@
 #include "Triangle.h"
 #include "Poly.h"
 #include "Ellipse.h"
-#include "LightSource.h"
 #include "Text.h"
 #include "Line.h"
 #include "Shader.h"
+
+#define JGL_POS_MIDDLE -0xffa012e
 
 namespace jgl {
 
     ///starts JGL, and opens a window
     ///@param size of window
     ///@param title of window
-    void init(unsigned, const jutil::String&);
+    void init(unsigned, unsigned, const char*, int = JGL_POS_MIDDLE, int = JGL_POS_MIDDLE);
 
     void begin(Core&);
 
@@ -30,43 +31,15 @@ namespace jgl {
 
     Core *getCore();
 
-    ///rendering
-    void clear();
-    void display();
-    void setClearColor(const Color&);
-
     void pollEvents();
 
     void pause();
-
-    ///check if lighting is enabled
-    int lighting();
-
-    ///enable/disable lighting
-    void setLightingMode(int);
-
-    ///returns uniform variable location from built-in shader program
-    //uint32_t getUniform(const char*);
-
-    ///get window size
-    jml::Vector2u getWindowSize();
-
-    ///use this lightsource during this display
-    void useLightSource(LightSource);
-
-    ///returns vector containing all in-use light sources
-    jutil::Queue<LightSource> getLightsInScene();
 
     ///returns true if the window should not close.
     bool open();
 
     ///return mouse position in world coords
     Position getMouseInWorld();
-
-    void moveCamera(float, float);
-    void setCameraPosition(float, float);
-
-    Position getCameraPosition();
 
     bool keyPressed(Event::Key k);
 
@@ -81,7 +54,9 @@ namespace jgl {
     GLuint getDefaultFragmentShader();
     GLuint getDefaultVertexShader();
 
-    GLuint getVertexOutputsForLastDraw();
+    void setVsyncEnabled(bool);
+
+    GLFWwindow *getWindowHandle();
 
 }
 

@@ -2,19 +2,25 @@
 #define JGL_FONT_H
 
 #include <Core/String.h>
+#include <Container/Map.hpp>
+#include <Core/NonCopyable.h>
+#include "Character.h"
 
 namespace jgl {
-    struct Font {
-        Font();
-        Font(const jutil::String&, unsigned);
-        Font(const Font&);
-        Font(Font&&);
-        Font &operator=(const Font&);
-        Font &operator=(Font&&);
+    class Font : jutil::NonCopyable {
+    public:
+        Font(jutil::String, unsigned);
+
+        jutil::String getFile() const;
+        unsigned getSize() const;
+        const Character *getCharacter(char) const;
+
+        virtual ~Font();
+    private:
         jutil::String file;
         unsigned size;
-        bool operator==(const Font&) const;
-        bool operator!=(const Font&) const;
+        jutil::Map<char, Character*> characters;
+        FT_Library loader;
     };
 }
 

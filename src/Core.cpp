@@ -2,19 +2,13 @@
 #include "jgl.h"
 
 namespace jgl {
-    Core::Core() {}
+    Core::Core() : _window(getWindow()) {}
     void Core::eventHandler(Event e) {
         switch(e.type) {
-            case Event::KEY: {
-                switch(e.code) {
-                    case Event::ESCAPE: {
-                        break;
-                    }
-                    default: break;
-                }
-                break;
-            }
-            default: break;
+        case Event::Type::CLOSE:
+            end(0);
+
+        default: break;
         }
     }
 
@@ -24,16 +18,22 @@ namespace jgl {
 
     void Core::gameLoop() {
         while (open()) {
-            clear();
-            pollEvents();
+            _window->clear();
+
+
+
+             pollEvents();
+
 
             if (!update()) {
                 jgl::end(0);
                 break;
             }
 
-            display();
+
+            _window->render();
             pause();
+
         }
     }
 }

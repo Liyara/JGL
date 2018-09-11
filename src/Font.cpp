@@ -1,29 +1,54 @@
 #include "Font.h"
+#include "jgl.h"
+
+#ifdef JUTIL_WINDOWS
+    #define WINVER 0x0600
+    #ifdef _WIN32_WINNT
+        #undef _WIN32_WINNT
+    #endif
+    #define _WIN32_WINNT 0x0600
+    #include <windows.h>
+    #include <Shlobj.h>
+    #include <initguid.h>
+    #include <Knownfolders.h>
+    #include <Objbase.h>
+#endif // JUTIL_WINDOWS
 
 namespace jgl {
-    Font::Font() : size(0) {}
-    Font::Font(const jutil::String &s, unsigned u) : file(s), size(u) {}
-    Font::Font(const Font &f) : file(f.file), size(f.size) {}
-    Font::Font(Font &&f) : file(f.file), size(f.size) {
-        f.file = jutil::String();
-        f.size = 0;
+    Font::Font(jutil::String f, unsigned s) : file(f), size(s) {
+
+
+        if (!file.find('\\') && !file.find('/')) {
+
+            if (!file.find('.')) file += ".ttf";
+
+            #ifdef JUTIL_WINDOWS
+                wchar_t *path = NULL;
+                char cPath[255];
+                SHGetKnownFolderPath(FOLDERID_Fonts, 0, NULL, &path);
+                wcstombs(cPath, path, 255);
+                file = jutil::String(cPath) + '\\' + file;
+            #elif defined JUTIL_LINUX
+                file = jutil::String("/usr/share/fonts/") + file;
+            #endif // JUTIL_WINDOWS
+        }
+
+        if (FT_Init_FreeType(&loader))
+            if (getCore()) getCore()->errorHandler(0x43, "Font failed to initialize!");
+
+        for (char i = 0x20; i < 0x80 && i > 0x1f; ++i) characters.insert(i, new Character(loader, file, i, s));
     }
-    Font &Font::operator=(const Font &f) {
-        file = f.file;
-        size = f.size;
-        return *this;
+
+    jutil::String Font::getFile() const {
+        return file;
     }
-    Font &Font::operator=(Font &&f) {
-        file = f.file;
-        size = f.size;
-        f.file = jutil::String();
-        f.size = 0;
-        return *this;
+    unsigned Font::getSize() const {
+        return size;
     }
-    bool Font::operator==(const Font &f) const {
-        return (file == f.file && size == f.size);
+    const Character *Font::getCharacter(char c) const {
+        return characters[c];
     }
-    bool Font::operator!=(const Font &f) const {
-        return !((*this) == f);
+    Font::~Font() {
+        FT_Done_FreeType(loader);
     }
 }

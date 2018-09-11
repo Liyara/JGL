@@ -2,147 +2,225 @@
 #include "Matrix.h"
 #include <Maths.h>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-
 namespace jgl {
-    Object::Object(const Position &p, const Dimensions &d, const Color &c) :
-        position(p),
-        size(d),
+
+    const jutil::Queue<const char*> UNIFORM_NAMES = {
+        "material.ambient",     // 0
+        "material.diffuse",     // 1
+        "material.specular",    // 2
+        "maetrial.shine"        // 3
+    };
+
+    GLuint uboF, uboV, uboT;
+    unsigned fUniformIndex, vUniformIndex, tUniformIndex, sActiveP = 0;
+    GLvoid *uboData = NULL;
+    Shader *sActive = NULL;
+    jml::Vector4f cNorms;
+    GLbitfield mapping = GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_UNSYNCHRONIZED_BIT;
+    bool initUniforms = false;
+
+    struct TextureLayerData {
+        float position[2];      // 0 -> 8
+        float size[2];          // 8 -> 16
+        float imageSize[2];     // 16 -> 24
+        float factor[2];        // 24 -> 32
+        unsigned controller[2]; // 32 -> 40
+        float rotation;         // 40 -> 44
+        unsigned mode;          // 44 -> 48
+    };
+
+    struct Object::FragmentDrawData {
+        uint32_t textureCount;  // 0  -> 4
+        int32_t mode;           // 4  -> 8
+        int32_t lightCount;     // 8  -> 12
+        uint32_t __padding_0_;  // 12 -> 16
+        float fcolor[4];        // 16 -> 32
+        float normal[3];        // 32 -> 48
+    } fDrawData;
+
+    struct Object::VertexDrawData {
+        float rotation;             // 0  -> 4
+        uint32_t __padding_0_;      // 4  -> 8
+        float wSize[2];             // 8  -> 16
+        float rawPosition[2];       // 16 -> 24
+        float rawSize[2];           // 24 -> 32
+        float textureArea[2];       // 32 -> 40
+        float origin[2];            // 40 -> 48
+        float cameraPosition[3];    // 48 -> 64
+    } vDrawData;
+
+    struct Object::TextureDrawData {
+        TextureLayerData layers[_JGL_TEXTURE_SEGMENT_LENGTH];   // 0 -> 512
+    } tDrawData;
+
+
+    #define INIT_UBO(ubo, data, index) \
+        glGenBuffers(1, &ubo);\
+        glBindBuffer(GL_UNIFORM_BUFFER, ubo);\
+        glBufferData(GL_UNIFORM_BUFFER, sizeof(data), NULL, GL_DYNAMIC_DRAW);\
+        glBindBuffer(GL_UNIFORM_BUFFER, 0);\
+        glBindBufferRange(GL_UNIFORM_BUFFER, index, ubo, 0, sizeof(data));
+
+    Object::Object(const Position &p, const Dimensions &d, const Color &c) : Transformable(p, d, jml::Angle(0)),
         color(c),
-        hasTexture(false),
-        rotation(0),
         formed(false),
         components(0),
         material(),
         outline(0),
+        fbo(0),
         fill(true),
         outlineColor(c),
-        shader(getDefaultShader()),
         drawMode(GL_POLYGON) {
-            uniforms.insert(shader.getUniformID("hastex"));
-            uniforms.insert(shader.getUniformID("mode"));
-            uniforms.insert(shader.getUniformID("wSize"));
-            uniforms.insert(shader.getUniformID("rawPosition"));
-            uniforms.insert(shader.getUniformID("rawSize"));
-            uniforms.insert(shader.getUniformID("rotation"));
-            uniforms.insert(shader.getUniformID("fcolor"));
-            uniforms.insert(shader.getUniformID("lightCount"));
-            uniforms.insert(shader.getUniformID("normal"));
-            uniforms.insert(shader.getUniformID("cameraPos"));
-            uniforms.insert(shader.getUniformID("material.ambient"));
-            uniforms.insert(shader.getUniformID("material.diffuse"));
-            uniforms.insert(shader.getUniformID("material.specular"));
-            uniforms.insert(shader.getUniformID("maetrial.shine"));
+            useShader(getDefaultShader());
+            if (!initUniforms) {
+                for (size_t i = 0; i < _JGL_TEXTURE_SEGMENT_LENGTH; ++i) {
+
+                    tDrawData.layers[i].mode = 0u;
+
+                    tDrawData.layers[i].position[0] = 0.f;
+                    tDrawData.layers[i].position[1] = 0.f;
+
+                    tDrawData.layers[i].size[0] = 0.f;
+                    tDrawData.layers[i].size[1] = 0.f;
+
+                    tDrawData.layers[i].imageSize[0] = 0.0f;
+                    tDrawData.layers[i].imageSize[1] = 0.0f;
+
+                    tDrawData.layers[i].factor[0] = 0.0f;
+                    tDrawData.layers[i].factor[1] = 0.0f;
+
+                    tDrawData.layers[i].controller[0] = 0u;
+                    tDrawData.layers[i].controller[1] = 0u;
+
+                    tDrawData.layers[i].rotation = 0.f;
+                }
+                INIT_UBO(uboF, fDrawData, fUniformIndex);
+                INIT_UBO(uboV, vDrawData, vUniformIndex);
+                INIT_UBO(uboT, tDrawData, tUniformIndex);
+                initUniforms = true;
+            }
         }
 
     Object::Object() : Object({0, 0}, {0, 0}, Color::White) {}
 
-    void Object::draw() {
+    #define UPDATE_UBO(ubo, data) \
+        glBindBuffer(GL_UNIFORM_BUFFER, ubo);\
+        uboData = glMapBufferRange(GL_UNIFORM_BUFFER, 0, sizeof(data), mapping);\
+        if (uboData) memcpy(uboData, &data, sizeof(data));\
+        glUnmapBuffer(GL_UNIFORM_BUFFER);
 
-        auto colorNormal = color.normals();
+    void Object::render(const Screen *screen) {
 
-        Shader::setActive(&shader);
-        if (!formed) {
-            formShape();
+        if (fbo != screen->buffer) {
+            glBindFramebuffer(GL_FRAMEBUFFER, screen->buffer);
+            fbo = screen->buffer;
         }
 
-        shader.setUniform(uniforms[0], (unsigned)hasTexture);
+        sActive = Shader::getActive();
+        sActiveP = (sActive? sActive->getProgram() : 0);
 
-        shader.setUniform(uniforms[1], lighting());
-        shader.setUniform(uniforms[2], static_cast<jml::Vector2f>(getWindowSize()));
+        if (sActiveP != shader.getProgram()) Shader::setActive(&shader);
+        if (!formed) formShape();
 
-        if (lighting() != JGL_LIGHTING_NONE) {
-            jml::Vector3f nColor(colorNormal);
-            auto lights = getLightsInScene();
-            shader.setUniform(uniforms[7], (int)lights.size());
-            for (size_t i = 0; i < lights.size(); ++i) {
+        fDrawData.textureCount = numLayers();
 
-                auto &light = lights[i];
-                jml::Vector3f lColor(light.color.normals());
+        auto &sSize = screen->getSize();
+        auto &sPos = screen->getCameraPosition();
 
-                jutil::String
-                    baseStr = "lights[" + jutil::String(i),
-                    posStr = "].pos",
-                    intStr = "].intensity",
-                    colorStr = "].c"
-                ;
+        fDrawData.mode = screen->lighting();
+        vDrawData.wSize[0] = sSize[0];
+        vDrawData.wSize[1] = sSize[1];
 
-                char
-                    pos_s[baseStr.size() + posStr.size() + 1],
-                    int_s[baseStr.size() + intStr.size() + 1],
-                    color_s[baseStr.size() + colorStr.size() + 1]
-                ;
+        vDrawData.rawSize[0] = size[0];
+        vDrawData.rawSize[1] = size[1];
 
-                (baseStr + posStr).array(pos_s);
-                (baseStr + intStr).array(int_s);
-                (baseStr + colorStr).array(color_s);
+        vDrawData.rawPosition[0] = position[0];
+        vDrawData.rawPosition[1] = position[1];
 
-                jml::Vector2f pos_v {static_cast<float>(light.position.x() + getWindowSize().x() / 2.0), static_cast<float>(-light.position.y() + getWindowSize().y() / 2.0)};
+        vDrawData.rotation = static_cast<float>(static_cast<long double>(rotation));
 
-                shader.setUniform(pos_s, pos_v);
+        vDrawData.cameraPosition[0] = sPos[0];
+        vDrawData.cameraPosition[1] = sPos[1];
 
-                shader.setUniform(int_s, light.intensity);
-                shader.setUniform(color_s, lColor);
+        fDrawData.fcolor[0] = (color.red() / 255.f);
+        fDrawData.fcolor[1] = (color.green() / 255.f);
+        fDrawData.fcolor[2] = (color.blue() / 255.f);
+        fDrawData.fcolor[3] = (color.alpha() / 255.f);
 
-            }
+        vDrawData.textureArea[0] = size[0];
+        vDrawData.textureArea[1] = size[1];
 
-            shader.setUniform(uniforms[8], jml::Vector3u{0, 0, 1});
-            shader.setUniform(uniforms[9], jml::Vector3d(getCameraPosition(), 1.0));
+        vDrawData.origin[0] = origin[0];
+        vDrawData.origin[1] = origin[1];
 
-            shader.setUniform(uniforms[10], nColor);
-            shader.setUniform(uniforms[11], nColor);
-            shader.setUniform(uniforms[12], jml::Vector3f(material.specular.normals()));
-            shader.setUniform(uniforms[13], material.shine);
-        }
+        UPDATE_UBO(uboF, fDrawData);
+        UPDATE_UBO(uboV, vDrawData);
 
-
-
-        shader.setUniform(uniforms[3], static_cast<jml::Vector2f>(position));
-        shader.setUniform(uniforms[4], static_cast<jml::Vector2f>(size));
-        shader.setUniform(uniforms[5], static_cast<float>(static_cast<long double>(rotation)));
-
-
-        //glEnable(GL_BLEND);
-        //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-        glBindBuffer(GL_ARRAY_BUFFER, vao);
-        glEnableVertexAttribArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
 
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, components * sizeof(float), NULL);
-        glPolygonMode(GL_FRONT, GL_FILL);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, components * sizeof(float), (char*)0 + 3 * sizeof(float));
 
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        if (numLayers()) {
 
-        if (hasTexture) {
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, texture);
-            glEnableVertexAttribArray(1);
-            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, components * sizeof(float), (char*)0 + 3 * sizeof(float));
+            size_t textureLoadCount = jml::min(numLayers(), static_cast<size_t>(_JGL_TEXTURE_SEGMENT_LENGTH));
+
+            for (size_t i = 0; i < textureLoadCount; ++i) {
+
+                if (layers[i].getSize()[0] == JGL_AUTOMATIC_SIZE) {
+                    tDrawData.layers[i].size[0] = layers[i].getImageSize()[0];
+                    tDrawData.layers[i].controller[0] = 0u;
+                }
+                else {
+                    tDrawData.layers[i].size[0] = layers[i].getSize()[0];
+                    tDrawData.layers[i].controller[0] = 1u;
+                }
+
+                if (layers[i].getSize()[1] == JGL_AUTOMATIC_SIZE) {
+                    tDrawData.layers[i].size[1] = layers[i].getImageSize()[1];
+                    tDrawData.layers[i].controller[1] = 0u;
+                }
+                else {
+                    tDrawData.layers[i].size[1] = layers[i].getSize()[1];
+                    tDrawData.layers[i].controller[1] = 1u;
+                }
+
+                tDrawData.layers[i].mode = 0;
+
+                tDrawData.layers[i].position[0] = layers[i].getPosition()[0];
+                tDrawData.layers[i].position[1] = layers[i].getPosition()[1];
+
+                tDrawData.layers[i].imageSize[0] = layers[i].getImageSize()[0];
+                tDrawData.layers[i].imageSize[1] = layers[i].getImageSize()[1];
+
+                tDrawData.layers[i].factor[0] = layers[i].getScalingFactor()[0];
+                tDrawData.layers[i].factor[1] = layers[i].getScalingFactor()[1];
+
+                tDrawData.layers[i].rotation = static_cast<float>(static_cast<long double>(layers[i].getRotation()));
+
+                glActiveTexture(_JGL_TEXTURE_SEGMENT + i);
+                glBindTexture(GL_TEXTURE_2D, layers[i].getTexture()->getID());
+            }
+
+            UPDATE_UBO(uboT, tDrawData);
         }
 
         if (fill) {
-            shader.setUniform(uniforms[6], colorNormal);
             glDrawArrays(drawMode, 0, vertexCount);
         }
 
         if (outline) {
-            shader.setUniform(uniforms[6], outlineColor.normals());
             glLineWidth(outline);
             glPolygonMode(GL_FRONT, GL_LINE);
             glDrawArrays(GL_POLYGON, 0, vertexCount);
             glLineWidth(1);
         }
-
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        Shader::setActive(NULL);
     }
 
-    Object &Object::setRotation(const jml::Angle &angle) {
-        rotation = angle;
-        return *this;
+    void Object::render() {
+        render(getWindow());
     }
+
 
     Object &Object::setMaterial(const Material &m) {
         material = m;
@@ -156,97 +234,34 @@ namespace jgl {
     Color Object::getColor() const {
         return color;
     }
-    Object &Object::setPosition(const Position &p) {
-        position = p;
-        return *this;
-    }
-    Position Object::getPosition() const {
-        return position;
-    }
-    Object &Object::setSize(const Dimensions &d) {
-        size = d;
-        return *this;
-    }
-    Dimensions Object::getSize() const {
-        return size;
-    }
-    Object &Object::move(Position offset) {
-        position[0] += offset[0];
-        position[1] += offset[1];
-        return *this;
-    }
-    Object &Object::scale(jml::Vector2d s) {
-        size.x() *= s.x();
-        size.y() *= s.y();
-        return *this;
-    }
-    Object &Object::setTexture(const char *str) {
 
-        glGenTextures(1, &texture);
-        glBindTexture(GL_TEXTURE_2D, texture);
-
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-        int width, height, nrChannels;
-        unsigned char *data = stbi_load(str, &width, &height, &nrChannels, 0);
-
-        GLenum channels;
-
-        if (nrChannels == 3) channels = GL_RGB;
-        else if (nrChannels == 4) channels = GL_RGBA;
-
-        glTexImage2D(GL_TEXTURE_2D, 0, channels, width, height, 0, channels, GL_UNSIGNED_BYTE, data);
-
-        if (data) {
-
-            glEnable(GL_BLEND);
-            glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-
-            glGenerateMipmap(GL_TEXTURE_2D);
-
-            glBindTexture(GL_TEXTURE_2D, 0);
-
-            stbi_image_free(data);
-
-            hasTexture = true;
-        } else {
-            jutil::String err = jutil::String("Failed to load texture ") + jutil::String(str);
-            char errC[err.size() + 1];
-            err.array(errC);
-            jgl::getCore()->errorHandler(0xf0,  errC);
-        }
-
-        return *this;
-    }
-
-    Object &Object::setTexture(GLuint tex) {
-        texture = tex;
-        hasTexture = texture;
-        return *this;
-    }
-    GLuint *Object::getTexture() const {
-        if (hasTexture) {
-            return (GLuint*)&texture;
-        } else {
-            return 0;
-        }
-    }
     Object::~Object() {
 
     }
 
     Object &Object::formShape() {
-        GLint m_viewport[4];
-        glGetIntegerv(GL_VIEWPORT, m_viewport);
-        const float ASPECT = ((float)m_viewport[2] / (float)m_viewport[3]);
         polygon = genVAO();
 
         components = polygon[0].size();
         vertexCount = polygon.size();
 
+        ///Enable use of object within OPENGL
+        glGenBuffers(1, &vbo);
+
+        loadPolygon();
+
+        formed = true;
+
+        return *this;
+    }
+
+    void Object::loadPolygon() {
+
+        GLint m_viewport[4];
+        glGetIntegerv(GL_VIEWPORT, m_viewport);
+        const float ASPECT = ((float)m_viewport[2] / (float)m_viewport[3]);
+
+        unpackedPolygon.clear();
         unpackedPolygon.reserve(vertexCount * components);
 
         for (auto &i: polygon) {
@@ -256,27 +271,19 @@ namespace jgl {
             }
         }
 
-        ///Enable use of object within OPENGL
-        glGenBuffers(1, &vao);
-
         ///Bind object to the "GL_ARRAY_BUFFER" section of the OPENGL context
-        glBindBuffer(GL_ARRAY_BUFFER, vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
 
         ///allocate memory to the object we've just bound in "GLARRAY_BUFFER" in the GPU
         glBufferData(GL_ARRAY_BUFFER, vertexCount * components * sizeof(float), &(unpackedPolygon[0]), GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+
+        glEnableVertexAttribArray(1);
 
         ///unbind
         glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-        formed = true;
-
-        return *this;
     }
 
-    Object &Object::rotate(const jml::Angle &r) {
-        rotation += r;
-        return *this;
-    }
 
     jutil::Queue<jml::Vertex> Object::getVertices() {
 
@@ -286,9 +293,6 @@ namespace jgl {
         return polygon;
     }
 
-    jml::Angle Object::getRotation() const {
-        return rotation;
-    }
 
     Object &Object::setOutline(uint8_t o) {
         outline = o;
@@ -305,8 +309,28 @@ namespace jgl {
         outlineColor = c;
         return *this;
     }
+
     Object &Object::useShader(const Shader &s) {
         shader = s;
+        uniforms.clear();
+        uniforms.reserve(UNIFORM_NAMES.size());
+        for (auto &i: UNIFORM_NAMES) uniforms.insert(shader.getUniformID(i));
+        jutil::String tNameBase = "texture", tName;
+        for (size_t i = 0; i < _JGL_TEXTURE_SEGMENT_LENGTH; ++i) {
+            tName = tNameBase + jutil::String(i);
+            char tNameC[tName.size() + 1];
+            tName.array(tNameC);
+            unsigned nameID = shader.getUniformID(tNameC);
+            uniforms.insert(nameID);
+            shader.setUniform(nameID, static_cast<int>(i));
+
+        }
+        fUniformIndex = glGetUniformBlockIndex(shader.getProgram(), "JGLFragmentDrawData");
+        vUniformIndex = glGetUniformBlockIndex(shader.getProgram(), "JGLVertexDrawData");
+        tUniformIndex = glGetUniformBlockIndex(shader.getProgram(), "TextureDrawData");
+        glUniformBlockBinding(shader.getProgram(), fUniformIndex, 0);
+        glUniformBlockBinding(shader.getProgram(), vUniformIndex, 1);
+        glUniformBlockBinding(shader.getProgram(), tUniformIndex, 2);
         return *this;
     }
     Object &Object::setMode(GLenum m) {
@@ -316,4 +340,14 @@ namespace jgl {
     GLenum Object::getMode() const {
         return drawMode;
     }
+
+    Object &Object::setOrigin(const jml::Vector2f &o) {
+        origin = o;
+        return *this;
+    }
+    const jml::Vector2f &Object::getOrigin() const {
+        return origin;
+    }
+
+
 }

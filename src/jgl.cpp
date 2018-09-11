@@ -8,9 +8,12 @@
 namespace jgl {
 
     const char *FRAGMENT_SHADER = R"glsl(
-        #version 330
+        #version 440 core
 
         #define M_PI 3.1415926535897932384626433832795
+
+        in vec2 jglTexCoords[16];
+        vec2 texCoords;
 
         struct LightSource {
             vec2 pos;
@@ -24,78 +27,84 @@ namespace jgl {
             vec3 specular;
             float shine;
         };
-
         uniform Material material;
 
         ///texture in use
-        uniform sampler2D tex;
+        uniform sampler2D texture0;
+        uniform sampler2D texture1;
+        uniform sampler2D texture2;
+        uniform sampler2D texture3;
+        uniform sampler2D texture4;
+        uniform sampler2D texture5;
+        uniform sampler2D texture6;
+        uniform sampler2D texture7;
+        uniform sampler2D texture8;
+        uniform sampler2D texture9;
+        uniform sampler2D texture10;
+        uniform sampler2D texture11;
+        uniform sampler2D texture12;
+        uniform sampler2D texture13;
+        uniform sampler2D texture14;
+        uniform sampler2D texture15;
 
-        ///BOOLEAN -> object has texture?
-        uniform uint hastex;
-
-        ///BOOLEAN -> lighting is enabled?
-        uniform int mode;
-
-        ///BOOLEAN -> object is text?
-        uniform uint isText;
-
-        ///color of fragment if no texture is applied
-        uniform vec4 fcolor;
-
-        ///number of lights in scene
-        uniform int lightCount;
+        vec4 fromTexture(uint id, vec2 coord) {
+            switch(id) {
+                case 0u: return texture2D(texture0, coord);
+                case 1u: return texture2D(texture1, coord);
+                case 2u: return texture2D(texture2, coord);
+                case 3u: return texture2D(texture3, coord);
+                case 4u: return texture2D(texture4, coord);
+                case 5u: return texture2D(texture5, coord);
+                case 6u: return texture2D(texture6, coord);
+                case 7u: return texture2D(texture7, coord);
+                case 8u: return texture2D(texture8, coord);
+                case 9u: return texture2D(texture9, coord);
+                case 10u: return texture2D(texture10, coord);
+                case 11u: return texture2D(texture11, coord);
+                case 12u: return texture2D(texture12, coord);
+                case 13u: return texture2D(texture13, coord);
+                case 14u: return texture2D(texture14, coord);
+                case 15u: return texture2D(texture15, coord);
+            }
+        }
 
         ///MAX 128 lights in scene
         uniform LightSource lights[128];
 
-        ///dimensions of window
-        uniform vec2 wsize;
+        layout (std140, binding = 0) uniform JGLVertexDrawData {
+            float jglObjectRotation;
+            vec2 jglWindowSize;
+            vec2 jglObjectPosition;
+            vec2 jglObjectSize;
+            vec2 jglObjectTexturedArea;
+            vec2 jglObjectOrigin;
+            vec3 jglCameraPosition;
+        };
 
-        uniform vec3 normal;
-
-        uniform vec3 cameraPos;
-
-        uniform vec2 offset;
-
-        uniform vec2 rawPosition;
-
-        ///coordinated in texture for fragment
-        in vec2 ftexcoord;
-
-        vec4 jglFragmentAsColor() {
-            return fcolor;
-        }
-
-        vec4 jglFragmentFromTexture() {
-            if (isText > 0u) {
-                vec4 sampled = vec4(1.0, 1.0, 1.0, texture2D(tex, ftexcoord).r);
-                return fcolor * sampled;
-            } else {
-                return texture2D(tex, ftexcoord).rgba;
-            }
-        }
-
-        uint jglFragmentIsTextured() {
-            return hastex;
-        }
-
-        int jglFragmentGetLightingMode() {
-            return mode;
-        }
-
+        layout (std140, binding = 1) uniform JGLFragmentDrawData {
+            uint jglTextureCount;
+            int jglLightingMode;
+            int jglLightCount;
+            vec4 jglObjectColor;
+            vec3 jglCameraNormal;
+        };
         vec4 jglFragmentApplyLighting(vec4 initColor, int lightingMode) {
+
             float rand = gl_FragCoord.x * 353.0 + gl_FragCoord.y * 769.0;
             float noise = fract(rand / 991.0) / 256.0;
             vec3 begColor;
             begColor.rgb = vec3(0.0, 0.0, 0.0);
             float ambience = 0.02;
             vec3 ambientLight = ambience * material.ambient;
-            for (int i = 0; i < lightCount; ++i) {
+            for (int i = 0; i < jglLightCount; ++i) {
+
                 vec3 passColor;
                 passColor.rgb = vec3(initColor.r, initColor.g, initColor.b);
-                vec3 fc = vec3(gl_FragCoord.x - (wsize.x / 2), gl_FragCoord.y - (wsize.y / 2), gl_FragCoord.z);
+                vec3 fc = vec3(gl_FragCoord.x - (jglWindowSize.x / 2.0), gl_FragCoord.y - (jglWindowSize.y / 2.0), gl_FragCoord.z);
 
                 vec3 lightPos = vec3(lights[i].pos, 1.0f);
+                lightPos.x += jglCameraPosition.x;
+                lightPos.y += jglCameraPosition.y;
                 vec3 lc = lights[i].c;
 
                 float mR = ambience + noise;
@@ -110,12 +119,12 @@ namespace jgl {
                 float iB = 1 / intensity;
                 float d = distance(lightPos, fc);
                 float attenuation = 1.0 / (1.0 + (iA * d) + (iB * pow(d, 2)));
-                vec3 diffuse = lc * (attenuation * material.diffuse);
+                vec3 diffuse = lc * (attenuation * initColor.rgb);
 
                 vec3 viewDir = normalize(vec3(lightPos.x, lightPos.y, 1.0) - fc);
                 //vec3 lightDir = normalize(lightPos - fc);
-                //vec3 reflectDir = reflect(-lightDir, normal);
-                float spec = pow(max(dot(viewDir, normal), 0.0),  max(1.0 - material.shine, 0.0));
+                //vec3 reflectDir = reflect(-lightDir, jglCameraNormal);
+                float spec = pow(max(dot(viewDir, jglCameraNormal), 0.0),  max(1.0 - material.shine, 0.0));
                 vec3 specular = lc * (spec * material.specular);
 
                 vec3 finalColor;
@@ -143,93 +152,274 @@ namespace jgl {
 
         }
 
+        vec4 sampleTextures() {
+            uint untextured = 1u;
+            float light = 1.0;
+            vec3 lightRGB = fromTexture(0, jglTexCoords[0]).rgb;
+            for (uint i = 0; i < jglTextureCount; ++i) {
+                if (jglTexCoords[i].x > -0.0001 && jglTexCoords[i].y > -0.0001 && jglTexCoords[i].x < 1.0001 && jglTexCoords[i].y < 1.0001) untextured = 0u;
+                vec4 layer = fromTexture(i, jglTexCoords[i]);
+                light *= 1.0 - layer.a;
+                if (i > 0u) {
+                    lightRGB *= 1.0 - layer.a;
+                    lightRGB += layer.rgb * layer.a;
+                }
+            }
+            if (untextured > 0u) return jglObjectColor;
+            return vec4(lightRGB, 1.0 - light);
+        }
+
         vec4 jglFragmentShader() {
-            vec4 initColor;
 
-            if (hastex > 0u) initColor.rgba = jglFragmentFromTexture();
-            else initColor.rgba = jglFragmentAsColor().rgba;
+            vec4 fragColor;
 
-            if (mode != -1 && isText <= 0u) return jglFragmentApplyLighting(initColor, mode);
-            else return initColor.rgba;
+            if (jglTextureCount > 0u) fragColor = sampleTextures();
+            else fragColor = jglObjectColor;
+
+            if (jglLightingMode > 0) jglFragmentApplyLighting(fragColor, jglLightingMode);
+
+            return fragColor;
         }
 
     )glsl";
 
     const char *VERTEX_SHADER = R"glsl(
-        #version 330
-        layout(location=0) in vec4 position;
-        layout(location=1) in vec2 texcoord;
-        out vec2 ftexcoord;
-        out vec4 transformedVertex;
-        uniform float rotation;
-        uniform vec2 wSize;
-        uniform vec2 rawPosition;
-        uniform vec2 rawSize;
+        #version 440 core
 
-        vec4 jglVertexShader() {
+        #define JGL_VERTEXMODE_MANUAL       0u
+        #define JGL_VERTEXMODE_RELATIVE     1u
+        #define JGL_VERTEXMODE_ABSOLUTE     2u
 
-            float aspect = wSize.x / wSize.y;
+        #define JGL_SIZE_CONTROLLER         0u
+        #define EXTERNAL_SIZE_CONTROLLER    1u
 
-            float yRatio = wSize.y / (wSize.x / 2.0);
+        layout(location=0) in vec4 jglVertexCoordInput;
+        layout(location=1) in vec2 jglTexCoordInput;
 
-            vec2 fixedSize = vec2(rawSize.x / wSize.x, rawSize.y / wSize.y);
+        out vec2 jglTexCoords[16];
+        out vec4 jglCoords;
 
-            vec2 offset = vec2(rawPosition.x / wSize.x, rawPosition.y / wSize.y);
+        struct TextureLayer {
+            vec2 position;
+            vec2 size;
+            vec2 imageSize;
+            vec2 factor;
+            uvec2 controller;
+            float rotation;
+            uint vertexMode;
+        };
 
-            mat4 translateM = mat4(
-                vec4(1, 0, 0, offset.x * 2),
-                vec4(0, 1, 0, -offset.y * yRatio),
+        layout (std140, binding = 0) uniform JGLVertexDrawData {
+            float jglObjectRotation;
+            vec2 jglWindowSize;
+            vec2 jglObjectPosition;
+            vec2 jglObjectSize;
+            vec2 jglObjectTexturedArea;
+            vec2 jglObjectOrigin;
+            vec3 jglCameraPosition;
+        };
+
+        layout (std140, binding = 1) uniform JGLFragmentDrawData {
+            uint jglTextureCount;
+            int jglLightingMode;
+            int jglLightCount;
+            vec4 jglObjectColor;
+            vec3 jglCameraNormal;
+        };
+
+        layout (std140, binding = 2) uniform TextureDrawData {
+            TextureLayer layers[16];
+        };
+
+        vec4 jglGetVertexInput() {
+            return jglVertexCoordInput;
+        }
+
+        vec2 worldToTexture(vec2 vA) {
+            return vec2((vA.x / 2.0f) + 0.5f, ((vA.y / 2.0f) + 0.5f) + (vA.y * -1.0f));
+        }
+
+        vec2 textureToWorld(vec2 vA) {
+            return vec2((vA.x * 2.0f) - 1.0f, ((vA.y * 2) - 1) * -1);
+        }
+
+        float jglGetAspectRatio() {
+            return jglWindowSize.x / jglWindowSize.y;
+        }
+
+        vec2 pixelsToScreen(vec2 pixels, vec2 screen) {
+            return vec2(pixels.x / screen.x, pixels.y / screen.y);
+        }
+
+        vec2 screenToPixels(vec2 screen, vec2 window) {
+            return vec2(screen.x * window.x, screen.y * window.y);
+        }
+
+        mat4 jglTranslationMatrix(vec2 offset, vec2 cameraTranslation, vec2 screenSize) {
+
+            float yRatio = screenSize.y / (screenSize.x / 2.0);
+
+            return mat4(
+                vec4(1, 0, 0, (offset.x + cameraTranslation.x) * 2),
+                vec4(0, 1, 0, -(offset.y + cameraTranslation.y) * yRatio),
                 vec4(0, 0, 1, 0),
                 vec4(0, 0, 0, 1)
             );
 
-            mat4 rotateM = mat4(
+        }
+
+        mat4 jglRotationMatrix(float rotation) {
+            return mat4(
                 vec4(cos(-rotation), -sin(-rotation), 0, 0),
                 vec4(sin(-rotation), cos(-rotation), 0, 0),
                 vec4(0, 0, 1, 0),
                 vec4(0, 0, 0, 1)
             );
+        }
 
-            mat4 scaleM = mat4(
-                vec4(fixedSize.x, 0, 0, 0),
-                vec4(0, fixedSize.y, 0, 0),
+        mat4 jglScalingMatrix(vec2 size) {
+            return mat4(
+                vec4(size.x, 0, 0, 0),
+                vec4(0, size.y, 0, 0),
                 vec4(0, 0, 1, 0),
                 vec4(0, 0, 0, 1)
             );
+        }
 
-            mat4 projectM = mat4(
+        mat4 jglProjectionMatrix(float aspect) {
+            return mat4(
                 vec4(1, 0, 0, 0),
                 vec4(0, 2.0 / (aspect + aspect), 0, 0),
                 vec4(0, 0, -1, 0),
                 vec4(0, 0, 0, 1)
             );
+        }
 
-            transformedVertex = position * projectM * scaleM * rotateM * translateM;
+        vec4 jglTransformVertex(vec4 vertex, mat4 projection, mat4 scaling, mat4 rotation, mat4 translation) {
 
-            ftexcoord = texcoord;
+            vec2 origin = -pixelsToScreen(jglObjectOrigin * (jglObjectSize / 2.0), jglWindowSize);
 
-            return transformedVertex;
+            return vertex * projection * scaling * jglTranslationMatrix(origin, vec2(0), jglWindowSize) * rotation * translation;
+        }
+
+        float getAspectRatio(vec2 screen) {
+            return screen.x / screen.y;
+        }
+
+        vec2 jglGetTextureCoordinates(uint id) {
+
+            vec2 rawImageSize   = layers[id].imageSize;
+            vec2 setSize        = layers[id].size;
+            vec2 objectSize     = jglObjectSize;
+            vec2 scaler         = layers[id].factor;
+            vec2 textureArea    = jglObjectTexturedArea;
+            vec2 size           = vec2(1.0);
+            vec2 sizeRatio      = rawImageSize / objectSize;
+
+            float rotation  = layers[id].rotation;
+            float oAspect   = getAspectRatio(objectSize);
+            vec2 position   = layers[id].position;
+
+            uint mode               = layers[id].vertexMode;
+            uvec2 sizeController    = layers[id].controller;
+
+            vec2 transformedVertex;
+            vec2 vertex;
+
+            if (mode == JGL_VERTEXMODE_MANUAL) {
+                size = textureArea;
+                vertex = textureToWorld(jglTexCoordInput);
+            } else if (mode == JGL_VERTEXMODE_RELATIVE) {
+                size = objectSize;
+                vertex = jglVertexCoordInput.xy;
+            } else if (mode == JGL_VERTEXMODE_ABSOLUTE) {
+                size = rawImageSize;
+                vertex = jglVertexCoordInput.xy * sizeRatio;
+            }
+
+            if (sizeController[0] == JGL_SIZE_CONTROLLER) {
+                setSize[0] = size[0];
+            }
+
+            if (sizeController[1] == JGL_SIZE_CONTROLLER) {
+                setSize[1] = size[1];
+            }
+
+            vec2 factor             = setSize / size;
+            vec2 finalScaler        = pixelsToScreen(size * factor * scaler, objectSize);
+            vec2 finalTranslater    = pixelsToScreen(vec2(position.x * -2, position.y * 2), objectSize);
+
+            vec2 angle = vec2(cos(rotation), sin(rotation));
+
+            mat2 rotateV = mat2(
+                vec2(angle.x, -angle.y),
+                vec2(angle.y, angle.x)
+            );
+
+            mat2 scaleV = mat2(
+                vec2(1.0f / finalScaler.x, 0),
+                vec2(0, 1.0f / finalScaler.y)
+            );
+
+            transformedVertex = (vertex + finalTranslater) * scaleV * rotateV;
+
+            return worldToTexture(transformedVertex);
+        }
+
+        vec4 jglVertexShader() {
+
+            jglCoords = jglTransformVertex(
+                jglVertexCoordInput,
+                jglProjectionMatrix(jglGetAspectRatio()),
+                jglScalingMatrix(pixelsToScreen(jglObjectSize, jglWindowSize)),
+                jglRotationMatrix(jglObjectRotation),
+                jglTranslationMatrix(pixelsToScreen(jglObjectPosition, jglWindowSize), pixelsToScreen(jglCameraPosition.xy, jglWindowSize), jglWindowSize)
+            );
+
+            for (uint i = 0u; i < jglTextureCount; ++i) jglTexCoords[i] = jglGetTextureCoordinates(i);
+
+            return jglCoords;
+        }
+    )glsl";
+
+    const char *VERTEX_MAIN = R"glsl(
+        #version jgl vertex
+
+        void main() {
+            gl_Position = jglVertexShader();
+        }
+    )glsl";
+
+    const char *FRAGMENT_MAIN = R"glsl(
+        #version jgl fragment
+
+        ///resulting color of fragment
+        layout(location = 0) out vec4 color;
+
+        void main() {
+            color = jglFragmentShader();
         }
     )glsl";
 
     jutil::Queue<LightSource> lights;
-    //jutil::Queue<Object*> objects;
 
     ///variables
     jutil::String name;
     jml::Vector2u dimensions;
-    jutil::Queue<jml::Vector2f> shadowMap;
+    jml::Vector2i position;
     GLFWwindow *win;
-    Color clearColor;
+    Window *window = NULL;
     bool opens = true;
-    int lMode = 1;
     Shader defaultShader;
     Position cameraPos = {0, 0};
-    Core *core;
-    Object *background;
+    Core *core = NULL;
     long double fTime, fTimeLim = 0;
     jutil::Timer timer;
     GLuint shaderF, shaderV;
+
+    GLFWwindow *getWindowHandle() {
+        return win;
+    }
 
     void pause() {
         jutil::sleep(jml::max(fTimeLim - timer.get(jutil::MILLISECONDS), 0.L));
@@ -242,47 +432,85 @@ namespace jgl {
     }
 
     void keyHandle(GLFWwindow*, int c, int, int a, int m) {
-        Event e(Event::KEY, c, (Event::Action)a, m);
-        core->eventHandler(e);
+        if (core) {
+            Event e(Event::KEY, c, (Event::Action)a, m);
+            core->eventHandler(e);
+        }
     }
 
     void mouseHandle(GLFWwindow*, int b, int a, int m) {
-        Event e(Event::MOUSE, b, (Event::Action)a, m);
-        core->eventHandler(e);
+        if (core) {
+            Event e(Event::MOUSE, b, (Event::Action)a, m);
+            core->eventHandler(e);
+        }
     }
 
     void scrollHandle(GLFWwindow*, double x, double y) {
-        Event e(Event::SCROLL, x, y);
-        core->eventHandler(e);
+        if (core) {
+            Event e(Event::SCROLL, x, y);
+            core->eventHandler(e);
+        }
     }
 
     void cursorPositionHandle(GLFWwindow*, double x, double y) {
-        Event e(Event::CURSOR, x, y);
-        core->eventHandler(e);
+        if (core) {
+            Event e(Event::CURSOR, x, y);
+            core->eventHandler(e);
+        }
     }
 
     void closeHandle(GLFWwindow*) {
-        end(0);
+        if (core) core->eventHandler(Event(Event::CLOSE));
     }
 
-    GLuint getVertexOutputsForLastDraw() {
+    void sizeHandle(GLFWwindow*, int w, int h) {
+        if (core) {
+            Event e(Event::RESIZE, w, h);
+            core->eventHandler(e);
+        }
+    }
+
+    void posHandle(GLFWwindow*, int x, int y) {
+        if (core) {
+            Event e(Event::MOVE, static_cast<double>(x), static_cast<double>(y));
+            core->eventHandler(e);
+        }
+    }
+
+    void focusHandle(GLFWwindow*, int f) {
+        if (core) {
+            Event::Type id;
+            if (f) id = Event::GAIN_FOCUS;
+            else id = Event::LOSE_FOCUS;
+
+            Event e(id);
+            core->eventHandler(e);
+        }
 
     }
 
-    void init(unsigned width, const jutil::String &title) {
+    void cursorFocusHandle(GLFWwindow*, int f) {
+        if (core) {
+            Event::Type id;
+            if (f) id = Event::CURSOR_ENTER;
+            else id = Event::CURSOR_LEAVE;
 
-        unsigned height = width / (16.0 / 9.0);
+            Event e(id);
+            core->eventHandler(e);
+        }
+
+    }
+
+    void init(unsigned width, unsigned height, const char *title, int pX, int pY) {
 
         dimensions[0] = width;
         dimensions[1] = height;
+
         name = title;
         glewExperimental = GL_TRUE;
         if (!glfwInit()) {
             core->errorHandler(1, "GLFW failed to initialize");
         }
-        ilInit();
-        iluInit();
-        ilutRenderer(ILUT_OPENGL);
 
         glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
         glfwWindowHint(GLFW_SAMPLES, 4);
@@ -292,11 +520,7 @@ namespace jgl {
         glEnable(GL_LINE_SMOOTH);
         glEnable(GL_POLYGON_SMOOTH);
 
-
-        char titlecstr[title.size() + 1];
-        title.array(titlecstr);
-
-        win = glfwCreateWindow(width, height, titlecstr, NULL, NULL);
+        win = glfwCreateWindow(width, height, title, NULL, NULL);
         if (!win) {
             core->errorHandler(2, "Window creation failed");
         }
@@ -307,31 +531,56 @@ namespace jgl {
             core->errorHandler(3, "GLEW failed to initialize");
         }
 
+        int nModes = 0;
+        const GLFWvidmode *modes = glfwGetVideoModes(glfwGetPrimaryMonitor(), &nModes);
+
+        if (pX == JGL_POS_MIDDLE) {for (int i = 0; i < nModes; ++i) {if (modes[i].width > position[0]) position[0] = (modes[i].width / 2) - (width / 2);}}
+        else position[0] = pX;
+        if (pY == JGL_POS_MIDDLE) {for (int i = 0; i < nModes; ++i) {if (modes[i].height > position[1]) position[1] = (modes[i].height / 2) - (height / 2);}}
+        else position[1] = pY;
+
         glfwSetKeyCallback(win, keyHandle);
         glfwSetMouseButtonCallback(win, mouseHandle);
         glfwSetScrollCallback(win, scrollHandle);
         glfwSetCursorPosCallback(win, cursorPositionHandle);
         glfwSetWindowCloseCallback(win, closeHandle);
+        glfwSetWindowSizeCallback(win, sizeHandle);
+        glfwSetWindowPosCallback(win, posHandle);
+        glfwSetWindowFocusCallback(win, focusHandle);
+        glfwSetCursorEnterCallback(win, cursorFocusHandle);
 
         shaderF = glCreateShader(GL_FRAGMENT_SHADER);
         glShaderSource(shaderF, 1, &FRAGMENT_SHADER, NULL);
         shaderV = glCreateShader(GL_VERTEX_SHADER);
         glShaderSource(shaderV, 1, &VERTEX_SHADER, NULL);
 
+        window = new Window(dimensions);
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
         glCompileShader(shaderF);
         glCompileShader(shaderV);
 
         glEnable(GL_MULTISAMPLE);
 
-        defaultShader = Shader("C:\\Users\\Liyara\\Documents\\Programming\\Libraries\\JGL\\shader\\main.vert", "C:\\Users\\Liyara\\Documents\\Programming\\Libraries\\JGL\\shader\\main.frag");
-        glfwSwapInterval(0);
+        defaultShader = Shader(jutil::String(VERTEX_MAIN), jutil::String(FRAGMENT_MAIN));
+        setVsyncEnabled(false);
+
+        glfwSetWindowPos(win, position[0], position[1]);
+
+        glPolygonMode(GL_FRONT, GL_FILL);
 
         glViewport(0.0f, -(((float)width - (float)height) / 2.0f), (float)width, (float)height * ((float)width / (float)height));
 
-        clearColor = Color::White;
-        background = new Quad({0, 0}, {width, unsigned(int((float)height * ((float)width / (float)height)))}, clearColor);
-        background->setMaterial(Material::Rubber);
+        initializeScreens();
         timer.start();
+
+    }
+
+    void setVsyncEnabled(bool e) {
+        if (e) glfwSwapInterval(-1);
+        else glfwSwapInterval(0);
     }
 
     GLuint getDefaultFragmentShader() {
@@ -372,38 +621,8 @@ namespace jgl {
         return code;
     }
 
-    void clear() {
-        if (opens) {
-            Dimensions d = getWindowSize();
-            unsigned width = d.x(), height = d.y();
-            float cameraY = cameraPos.y(), cameraX = cameraPos.x();
-            glViewport(0.0f + cameraX , -(((float)width - (float)height) / 2.0f) + cameraY, (float)width, (float)height * ((float)width / (float)height));
-
-            glClearColor(
-                Color::normal(clearColor.red()),
-                Color::normal(clearColor.green()),
-                Color::normal(clearColor.blue()),
-                Color::normal(clearColor.alpha())
-            );
-
-            glClear(GL_COLOR_BUFFER_BIT);
-
-        }
-    }
-
     void setFrameTimeLimit(long double lim) {
         fTimeLim = lim;
-    }
-
-    void display() {
-        if (opens) {
-            lights.clear();
-            glfwSwapBuffers(win);
-        }
-    }
-
-    void setClearColor(const Color &c) {
-        clearColor = c;
     }
 
     long double getFrameTime(unsigned t) {
@@ -418,13 +637,6 @@ namespace jgl {
         glfwPollEvents();
     }
 
-    int lighting() {
-        return lMode;
-    }
-
-    void setLightingMode(int m) {
-        lMode = m;
-    }
 
     jml::Vector2u getWindowSize() {
         return dimensions;
@@ -470,7 +682,10 @@ namespace jgl {
         GLdouble yRatio = winH / ((winW / GLdouble(2.0f)));
 
         r[0] = posX * winW / GLdouble(2.0);
-        r[1] = (-posY * winH / yRatio) + ((winW / GLdouble(2.0)) * GLdouble(7.0 / 8.0));
+        r[1] = (-posY * winH / yRatio) + (winW - winH);
+
+        r[0] -= cameraPos[0];
+        r[1] -= cameraPos[1];
 
         return r;
     }
@@ -493,3 +708,45 @@ namespace jgl {
         return cameraPos;
     }
 }
+
+/*vec2 startingCoords;
+            vec2 texSize;
+
+            if (layers[id].vertexMode == JGL_VERTEXMODE_MANUAL) {
+                startingCoords = textureToWorld(jglTexCoordInput);
+                texSize = jglObjectSize.xy; // CALC TEXTURE AREA
+            } else if (layers[id].vertexMode == JGL_VERTEXMODE_RELATIVE) {
+                startingCoords = jglVertexCoordInput.xy;
+            } else if (layers[id].vertexMode == JGL_VERTEXMODE_ABSOLUTE) {
+                startingCoords = jglVertexCoordInput.xy;
+            }
+
+            vec2 transformedTextureVertex;
+
+            vec2 ratio = jglObjectSize / layers[id].size;
+
+            float oAspect = jglObjectSize.x / jglObjectSize.y;
+
+            vec2 texFactor = texSize / jglObjectSize;
+
+            mat2 rotateV = mat2(
+                vec2(cos(layers[id].rotation), -sin(layers[id].rotation)),
+                vec2(sin(layers[id].rotation), cos(layers[id].rotation))
+            );
+
+            mat2 scaleV = mat2(
+                vec2(1.0f / texFactor.x, 0),
+                vec2(0, 1.0f / texFactor.y)
+            );
+
+            mat2 projectV = mat2(
+                vec2(1.0f, 0),
+                vec2(0, 2.0f / (oAspect + oAspect))
+            );
+
+            transformedTextureVertex = (startingCoords + pixelsToScreen(vec2(layers[id].position.x * -2, layers[id].position.y * 2), jglObjectSize)) * (projectV * rotateV) * scaleV;
+
+            transformedTextureVertex.y /= (2.0f / (oAspect + oAspect));
+
+            vec2 conversion = worldToTexture(vec2(transformedTextureVertex.x, transformedTextureVertex.y));
+            return conversion;*/

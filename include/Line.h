@@ -25,7 +25,7 @@ namespace jgl {
         Line &setWidth(unsigned);
         unsigned getWidth() const;
 
-        void draw() override;
+        void render() override;
 
     private:
         jutil::Queue<jutil::Queue<long double> > genVAO() override;
