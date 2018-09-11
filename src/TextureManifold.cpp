@@ -1,5 +1,6 @@
 #include "TextureManifold.h"
 #include "Maths.h"
+#include <IO/IO.h>
 
 #define TEXTURE_OPERATION(op) for (auto &i: layers) {if (i.getTexture() == t) {op;}}
 
@@ -13,13 +14,26 @@ namespace jgl {
             if (layers.empty()) index = 0;
             else index = layers.last().getZIndex() + 1;
         }
-        layers.insert(TextureLayer(t, this));
-        layers.last().setZIndex(index);
+        TextureLayer newLayer = TextureLayer(t, this);
+        newLayer.setZIndex(index);
+        if (layers.empty() || index > layers.last().getZIndex()) layers.insert(newLayer);
+        else {
+            for (size_t i = 0; i < layers.size(); ++i) {
+                if (index <= layers[i].getZIndex()) {
+                    layers.insert(newLayer, i);
+                    break;
+                }
+            }
+        }
         updateLayers();
         return *this;
     }
     TextureManifold &TextureManifold::removeTexture(Texture *t) {
-        //layers.erase(t);
+        for (auto it = layers.begin(); it != layers.end(); ++it) {
+            if (it->getTexture() == t) {
+                layers.erase(it);
+            }
+        }
         updateLayers();
         return *this;
     }
@@ -79,19 +93,7 @@ namespace jgl {
     }
 
     void TextureManifold::updateLayers() {
-        /*jutil::Queue<TextureLayer> updatedLayers;
-        updatedLayers.reserve(layers.size());
-        TextureLayer *pivot = &layers[layers.size() / 2];
-        TextureLayer *left = &layers.first(), *right = &layers.last();
-        for (size_t i = 0; i < layers.size(); ++ i) {
-            if (left->getZIndex() > pivot->getZIndex()) {
-                TextureLayer val = *right;
-                *right = *left;
-                *left = val;
-            }
-            ++left;
-            --right;
-        }*/
+        for (auto it = layers.begin(); it != layers.end(); ++it) if ((it + 1) != layers.end() && it->getZIndex() == (it + 1)->getZIndex()) (it + 1)->setZIndex((it + 1)->getZIndex() + 1);
     }
 
     TextureManifold::~TextureManifold() {}

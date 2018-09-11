@@ -36,6 +36,10 @@ namespace jgl {
 
         TextureLayer &setScalingMode(TextureMode);
 
+        bool operator==(const TextureLayer&);
+        bool operator>(const TextureLayer&);
+        bool operator<(const TextureLayer&);
+
     private:
 
         Texture* texture;

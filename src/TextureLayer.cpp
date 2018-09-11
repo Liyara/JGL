@@ -58,4 +58,16 @@ namespace jgl {
     const jml::Vector2f &TextureLayer::getScalingFactor() const {
         return scalingFactor;
     }
+
+    bool TextureLayer::operator==(const TextureLayer &t) {
+        return zIndex == t.zIndex;
+    }
+
+    bool TextureLayer::operator>(const TextureLayer &t) {
+        return zIndex > t.zIndex;
+    }
+
+    bool TextureLayer::operator<(const TextureLayer &t) {
+        return zIndex < t.zIndex;
+    }
 }
