@@ -11,14 +11,19 @@
   * Use Object.render, specifying a screen to render to that screen.
   * Screens can be translated and scaled, but not rotated.
 * Added the Window class which acts as a singleton screen representing the window.
-  * Several functions which were previously naked in the jgl namespace are now methods of Window
+  * Several functions which were previously naked in the jgl namespace are now methods of Window.
     * Including setClearColor, camera translation, and window size controls.
   
 ## Removed  
-* Temporarily removed lighting functionality
+* Temporarily removed lighting functionality.
+* Line no longer works.
 
 ## Changed
 * Re-wrote the rendering code for increased performance for users with dedicated GPUs.
 * Most jgl functions were moved to other classes.
-* JGL now uses GLSL version 440 with OpenGL 4.4
+* JGL now uses GLSL version 440 with OpenGL 4.4.
   * This may cause issues on older hardware but compatibility changes are in the works.
+* Fixed Text functionality.
+  * Performance bottleneck of loading character data was moved to the Font class.
+  * Loading fonts is extremely expensive, be mindful of where and how often you load your fonts.
+  * Changing a Text's string is still somewhat expensive, try to avoid doing this if possible.
