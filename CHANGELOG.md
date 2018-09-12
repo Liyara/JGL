@@ -17,7 +17,6 @@
 ## Removed  
 * Temporarily removed lighting functionality.
 * Line no longer works.
-* Object.draw() renamed to Object.render()
 
 ## Changed
 * Re-wrote the rendering code for increased performance for users with dedicated GPUs.
@@ -28,3 +27,4 @@
   * Performance bottleneck of loading character data was moved to the Font class.
   * Loading fonts is extremely expensive, be mindful of where and how often you load your fonts.
   * Changing a Text's string is still somewhat expensive, try to avoid doing this if possible.
+* Object.draw() renamed to Object.render()
