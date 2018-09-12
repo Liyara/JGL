@@ -8,7 +8,7 @@
   * One object can have uo to 16 textures attached.
   * Textures can be transformed individually per object
 * A Screen class used to add subscreens to the window.
-  * Use Object.render, specifying a screen to render to that dcreen.
+  * Use Object.render, specifying a screen to render to that screen.
   * Screens can be translated and scaled, but not rotated.
 * Added the Window class which ac ts as a singleton screen representing the window.
   * Several functions which were previously naked in the jgl namespace are now methods of Window
