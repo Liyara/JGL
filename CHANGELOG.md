@@ -10,7 +10,7 @@
 * A Screen class used to add subscreens to the window.
   * Use Object.render, specifying a screen to render to that screen.
   * Screens can be translated and scaled, but not rotated.
-* Added the Window class which ac ts as a singleton screen representing the window.
+* Added the Window class which acts as a singleton screen representing the window.
   * Several functions which were previously naked in the jgl namespace are now methods of Window
     * Including setClearColor, camera translation, and window size controls.
   
