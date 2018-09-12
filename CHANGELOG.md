@@ -5,7 +5,7 @@
 * A Texture class used for loading image data from a number sources.
 * Support for multitexturing
   *  Use Object.addTexture to add a texture to an object.
-  * One ob ject can have uo to 16 textures attached.
+  * One object can have uo to 16 textures attached.
   * Textures can be transformed individually per object
 * A Screen class used to add subscreens to the window.
   * Use Object.render, specifying a screen to render to that dcreen.
