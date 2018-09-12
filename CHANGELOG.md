@@ -17,6 +17,7 @@
 ## Removed  
 * Temporarily removed lighting functionality.
 * Line no longer works.
+* Object.draw() renamed to Object.render()
 
 ## Changed
 * Re-wrote the rendering code for increased performance for users with dedicated GPUs.
