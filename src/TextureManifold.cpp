@@ -2,7 +2,8 @@
 #include "Maths.h"
 #include <IO/IO.h>
 
-#define TEXTURE_OPERATION(op) for (auto &i: layers) {if (i.getTexture() == t) {op;}}
+#define TEXTURE_OPERATION(op) for (auto &i: layers) {if (!t || i.getTexture() == t) {op;}}
+#define SINGLE_TEXTURE_OPERATION(op) for (auto &i: layers) {if (i.getTexture() == t) {op;}}
 
 using namespace jml::literals;
 
@@ -38,7 +39,7 @@ namespace jgl {
         return *this;
     }
     bool TextureManifold::hasTexture(const Texture *t) const {
-        TEXTURE_OPERATION(return true);
+        SINGLE_TEXTURE_OPERATION(return true);
         return false;
     }
 
@@ -74,17 +75,17 @@ namespace jgl {
     }
 
     Position TextureManifold::getTexturePosition(const Texture *t) const {
-        TEXTURE_OPERATION(return i.getPosition());
+        SINGLE_TEXTURE_OPERATION(return i.getPosition());
         return -1;
     }
 
     Dimensions TextureManifold::getTextureSize(const Texture *t) const {
-        TEXTURE_OPERATION(return i.getSize());
+        SINGLE_TEXTURE_OPERATION(return i.getSize());
         return 0;
     }
 
     jml::Angle TextureManifold::getTextureRotation(const Texture *t) const {
-        TEXTURE_OPERATION(return i.getRotation());
+        SINGLE_TEXTURE_OPERATION(return i.getRotation());
         return 0_rads;
     }
 

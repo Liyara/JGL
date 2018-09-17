@@ -247,8 +247,6 @@ namespace jgl {
         polygon = generateVertices();
         textureObject = generateTextureVertices();
 
-        jutil::out << textureObject << jutil::endl;
-
         components = 6;
         vertexCount = polygon.size();
 
