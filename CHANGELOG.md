@@ -1,7 +1,8 @@
 # CHANGELOG
 
+## Added
+* Texture modes which allow you to change the behavior of JGL_AUTOMATIC_SIZE.
+
 ## Changed
 * Small bug fixes
-  * Debug console output was still enabled.
-  * Texture coordinates behaved incorrectly.
-  * Polys loaded wrong.
+  * Object color now works for any untextured fragment.
