@@ -2,6 +2,6 @@
 
 ## Changed
 * Small bug fixes
-  * Debug console output was still enabled
+  * Debug console output was still enabled.
   * Texture coordinates behaved incorrectly.
-  * Polys loaded wrong
+  * Polys loaded wrong.
