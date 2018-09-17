@@ -7,24 +7,24 @@ namespace jgl {
     Triangle::Triangle(const Position &p, const Dimensions &d, Type t, const Color &c) : Object(p, d, c), type(t) {this->drawMode = GL_TRIANGLES; formShape();}
     Triangle::Triangle(const Position &p, const Dimensions &d, const Color &c, Type t) : Object(p, d, c), type(t) {this->drawMode = GL_TRIANGLES; formShape();}
 
-    jutil::Queue<jutil::Queue<long double> > Triangle::genVAO() {
+    jutil::Queue<jml::Vertex> Triangle::generateVertices() const {
 
-        jutil::Queue<jutil::Queue<long double> > polygon;
+        jutil::Queue<jml::Vertex> polygon;
 
         switch(type) {
             case STANDARD: {
                 polygon = {
-                    {-1.0f, -1.0f, 0.0f, 0.0f, 1.0f},
-                    {1.0f, -1.0f, 0.0f, 1.0f, 1.0f},
-                    {0.0f, 1.0f, 0.0f, 0.5f, 0.0f}
+                    {-1.0f, -1.0f},
+                    {1.0f, -1.0f},
+                    {0.0f, 1.0}
                 };
                 break;
             }
             case RIGHT: {
                 polygon = {
-                    {-1.0f, -1.0f, 0.0f, 0.0f, 1.0f},
-                    {1.0f, 1.0f, 0.0f, 1.0f, 1.0f},
-                    {1.0f, -1.0f, 0.0f, 0.0f, 0.0f}
+                    {-1.0f, -1.0f},
+                    {1.0f, 1.0f},
+                    {1.0f, -1.0f}
                 };
                 break;
             }

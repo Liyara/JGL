@@ -6,31 +6,25 @@ namespace jgl {
     }
 
 
-    jutil::Queue<jutil::Queue<long double> > Poly::genVAO() {
-        jutil::Queue<jutil::Queue<long double> > polygon;
-
+    jutil::Queue<jml::Vertex> Poly::generateVertices() const {
+        jutil::Queue<jml::Vertex> poly;
         float angle, xangle = JML_PI / points;
         for (uint16_t i = 0; i < points; ++i) {
             angle = xangle * i * 2;
 
-            jml::Vector<long double, 2> vA = {jml::cos(angle), jml::sin(angle)}, vB = {(vA.x() / 2.0f) + 0.5f, ((vA.y() / 2.0f) + 0.5f) + (vA.y() * -1)};
-
-            jutil::Queue<long double> vertex = {
-                vA.x(), // X
-                vA.y(), // Y
-                0.0f, // Z
-                vB.x(), // Texture X
-                vB.y()  // Texture Y
+            jml::Vertex vertex = {
+                jml::sin(angle), // X
+                jml::cos(angle)  // Y
             };
 
-            polygon.insert(vertex);
+            poly.insert(vertex);
         }
 
-        return polygon;
+        return poly;
     }
 
     long double Poly::area() const {
-        auto poly = polygon;
+        auto poly = generateVertices();
         poly.insert(poly[0]);
         long double r = 0;
         for (unsigned i = 0; i < (poly.size() - 1); ++i) {

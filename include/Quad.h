@@ -12,7 +12,7 @@ namespace jgl {
 
         long double area() const;
     protected:
-        jutil::Queue<jutil::Queue<long double> > genVAO();
+        jutil::Queue<jml::Vertex> generateVertices() const override;
         Quad();
     private:
     };

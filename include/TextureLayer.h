@@ -35,6 +35,7 @@ namespace jgl {
         const jml::Vector2f &getScalingFactor() const;
 
         TextureLayer &setScalingMode(TextureMode);
+        TextureMode getScalingMode() const;
 
         bool operator==(const TextureLayer&);
         bool operator>(const TextureLayer&);

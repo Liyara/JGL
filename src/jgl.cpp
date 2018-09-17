@@ -13,7 +13,7 @@ namespace jgl {
         #define M_PI 3.1415926535897932384626433832795
 
         in vec2 jglTexCoords[16];
-        vec2 texCoords;
+        in vec2 texCoord;
 
         struct LightSource {
             vec2 pos;
@@ -153,7 +153,7 @@ namespace jgl {
         }
 
         vec4 sampleTextures() {
-            uint untextured = 1u;
+            /*uint untextured = 1u;
             float light = 1.0;
             vec3 lightRGB = fromTexture(0, jglTexCoords[0]).rgb;
             for (uint i = 0; i < jglTextureCount; ++i) {
@@ -166,7 +166,11 @@ namespace jgl {
                 }
             }
             if (untextured > 0u) return jglObjectColor;
-            return vec4(lightRGB, 1.0 - light);
+            return vec4(lightRGB, 1.0 - light);*/
+
+            vec2 fTexCoord = texCoord;
+
+            return texture(texture0, fTexCoord);
         }
 
         vec4 jglFragmentShader() {
@@ -198,6 +202,7 @@ namespace jgl {
 
         out vec2 jglTexCoords[16];
         out vec4 jglCoords;
+        out vec2 texCoord;
 
         struct TextureLayer {
             vec2 position;
@@ -327,14 +332,14 @@ namespace jgl {
             vec2 vertex;
 
             if (mode == JGL_VERTEXMODE_MANUAL) {
-                size = textureArea;
+                size = objectSize;
                 vertex = textureToWorld(jglTexCoordInput);
             } else if (mode == JGL_VERTEXMODE_RELATIVE) {
                 size = objectSize;
                 vertex = jglVertexCoordInput.xy;
             } else if (mode == JGL_VERTEXMODE_ABSOLUTE) {
                 size = rawImageSize;
-                vertex = jglVertexCoordInput.xy * sizeRatio;
+                vertex = textureToWorld(jglTexCoordInput);
             }
 
             if (sizeController[0] == JGL_SIZE_CONTROLLER) {
@@ -364,19 +369,24 @@ namespace jgl {
             transformedVertex = (vertex + finalTranslater) * scaleV * rotateV;
 
             return worldToTexture(transformedVertex);
+
         }
 
         vec4 jglVertexShader() {
 
+            vec4 convertedVertex = vec4(jglVertexCoordInput.xyz, jglVertexCoordInput.w + 1.0);
+
             jglCoords = jglTransformVertex(
-                jglVertexCoordInput,
+                convertedVertex,
                 jglProjectionMatrix(jglGetAspectRatio()),
                 jglScalingMatrix(pixelsToScreen(jglObjectSize, jglWindowSize)),
                 jglRotationMatrix(jglObjectRotation),
                 jglTranslationMatrix(pixelsToScreen(jglObjectPosition, jglWindowSize), pixelsToScreen(jglCameraPosition.xy, jglWindowSize), jglWindowSize)
             );
 
-            for (uint i = 0u; i < jglTextureCount; ++i) jglTexCoords[i] = jglGetTextureCoordinates(i);
+            //for (uint i = 0u; i < jglTextureCount; ++i) jglTexCoords[i] = jglGetTextureCoordinates(i);
+
+            texCoord = worldToTexture(jglVertexCoordInput.xy);
 
             return jglCoords;
         }

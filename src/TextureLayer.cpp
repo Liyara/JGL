@@ -4,7 +4,7 @@
 using namespace jml::literals;
 
 namespace jgl {
-    TextureLayer::TextureLayer(Texture *t, const TextureManifold *m) : Transformable(0, JGL_AUTOMATIC_SIZE, 0_degs), texture(t), manifold(m), scalingFactor(1) {
+    TextureLayer::TextureLayer(Texture *t, const TextureManifold *m) : Transformable(0, JGL_AUTOMATIC_SIZE, 0_degs), texture(t), manifold(m), scalingFactor(1), sMode(MANUAL) {
         t->containers.insert(this);
     }
 
@@ -32,6 +32,10 @@ namespace jgl {
                 break;
             }
         }
+    }
+
+    TextureMode TextureLayer::getScalingMode() const {
+        return sMode;
     }
 
     const Dimensions &TextureLayer::getImageSize() const {

@@ -9,13 +9,15 @@ namespace jgl {
 
     Quad::Quad() : Object({0, 0}, {0, 0}, Color::White) {}
 
-    jutil::Queue<jutil::Queue<long double> > Quad::genVAO() {
 
-        jutil::Queue<jutil::Queue<long double> > polygon = {
-            {-1.0f, -1.0f, 0.0f, 0.0f, 1.0f},
-            {1.0f, -1.0f, 0.0f, 1.0f, 1.0f},
-            {1.0f, 1.0f, 0.0f, 1.0f, 0.0f},
-            {-1.0f, 1.0f, 0.0f, 0.0f, 0.0f}
+
+    jutil::Queue<jml::Vertex> Quad::generateVertices() const {
+
+        jutil::Queue<jml::Vertex> polygon = {
+            {-1.0f, -1.0f},
+            {1.0f, -1.0f},
+            {1.0f, 1.0f},
+            {-1.0f, 1.0f}
 
         };
 

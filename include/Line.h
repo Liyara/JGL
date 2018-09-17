@@ -28,7 +28,7 @@ namespace jgl {
         void render() override;
 
     private:
-        jutil::Queue<jutil::Queue<long double> > genVAO() override;
+        jutil::Queue<jml::Vertex> generateVertices() const override;
         Object &generateMVP();
         Position a, b;
         unsigned thickness;

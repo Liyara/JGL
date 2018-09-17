@@ -97,4 +97,9 @@ namespace jgl {
     }
 
     TextureManifold::~TextureManifold() {}
+
+    TextureManifold &TextureManifold::setAutomaticSizeMode(const Texture *t, uint8_t m) {
+        TEXTURE_OPERATION(i.setScalingMode(static_cast<TextureMode>(m)));
+        return *this;
+    }
 }

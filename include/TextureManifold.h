@@ -29,6 +29,7 @@ namespace jgl {
         Dimensions getTextureSize(const Texture*) const;
         jml::Angle getTextureRotation(const Texture*) const;
 
+        TextureManifold &setAutomaticSizeMode(const Texture*, uint8_t);
 
         size_t numLayers() const;
 

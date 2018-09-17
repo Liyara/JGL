@@ -103,6 +103,14 @@ namespace jgl {
 
     Object::Object() : Object({0, 0}, {0, 0}, Color::White) {}
 
+    jml::Vertex textureToWorld(jml::Vertex vA) {
+        return {(vA.x() * 2.0f) - 1.0f, ((vA.y() * 2) - 1) * -1, vA.z(), vA.w()};
+    }
+
+    jml::Vertex worldToTexture(jml::Vertex vA) {
+        return {(vA.x() / 2.0f) + 0.5f, ((vA.y() / 2.0f) + 0.5f) + (vA.y() * -1.0f), vA.z(), vA.w()};
+    }
+
     #define UPDATE_UBO(ubo, data) \
         glBindBuffer(GL_UNIFORM_BUFFER, ubo);\
         uboData = glMapBufferRange(GL_UNIFORM_BUFFER, 0, sizeof(data), mapping);\
@@ -147,19 +155,23 @@ namespace jgl {
         fDrawData.fcolor[2] = (color.blue() / 255.f);
         fDrawData.fcolor[3] = (color.alpha() / 255.f);
 
-        vDrawData.textureArea[0] = size[0];
-        vDrawData.textureArea[1] = size[1];
+        float w = 0, h = 0, l = 0, r = 0, t = 0, b = 0;
+
+        for (auto &i: textureObject) {
+            if (i[0] < l) l = i[0];
+            if (i[0] > r) r = i[0];
+            if (i[1] < t) t = i[1];
+            if (i[1] > b) b = i[1];
+        }
+
+        w = ((r - l) * size[0]);
+        h = ((b - t) * size[1]);
+
+        vDrawData.textureArea[0] = w;
+        vDrawData.textureArea[1] = h;
 
         vDrawData.origin[0] = origin[0];
         vDrawData.origin[1] = origin[1];
-
-        UPDATE_UBO(uboF, fDrawData);
-        UPDATE_UBO(uboV, vDrawData);
-
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, components * sizeof(float), NULL);
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, components * sizeof(float), (char*)0 + 3 * sizeof(float));
 
         if (numLayers()) {
 
@@ -185,7 +197,7 @@ namespace jgl {
                     tDrawData.layers[i].controller[1] = 1u;
                 }
 
-                tDrawData.layers[i].mode = 0;
+                tDrawData.layers[i].mode = layers[i].getScalingMode();
 
                 tDrawData.layers[i].position[0] = layers[i].getPosition()[0];
                 tDrawData.layers[i].position[1] = layers[i].getPosition()[1];
@@ -204,6 +216,14 @@ namespace jgl {
 
             UPDATE_UBO(uboT, tDrawData);
         }
+
+        UPDATE_UBO(uboF, fDrawData);
+        UPDATE_UBO(uboV, vDrawData);
+
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+
+        glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, components * sizeof(float), NULL);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, components * sizeof(float), (char*)0 + 4 * sizeof(float));
 
         if (fill) {
             glDrawArrays(drawMode, 0, vertexCount);
@@ -240,9 +260,10 @@ namespace jgl {
     }
 
     Object &Object::formShape() {
-        polygon = genVAO();
+        polygon = generateVertices();
+        textureObject = generateTextureVertices();
 
-        components = polygon[0].size();
+        components = 6;
         vertexCount = polygon.size();
 
         ///Enable use of object within OPENGL
@@ -264,10 +285,22 @@ namespace jgl {
         unpackedPolygon.clear();
         unpackedPolygon.reserve(vertexCount * components);
 
+        size_t texIndex = 0;
+
         for (auto &i: polygon) {
             i[0] *= ASPECT;
             for (auto &j: i) {
                 unpackedPolygon.insert(j);
+            }
+            if (texIndex < textureObject.size()) {
+                for (size_t j = 0; j < 2; ++j) {
+                    unpackedPolygon.insert(textureObject[texIndex][j]);
+                }
+                ++texIndex;
+            } else {
+                for (size_t j = 0; j < 2; ++j) {
+                    unpackedPolygon.insert(1.L);
+                }
             }
         }
 
@@ -289,10 +322,13 @@ namespace jgl {
 
     }
 
-    jutil::Queue<jutil::Queue<long double> > Object::getVAO() const {
-        return polygon;
+    jutil::Queue<jml::Vertex> Object::generateTextureVertices() const {
+        jutil::Queue<jml::Vertex> tv;
+        for (auto &i: polygon) {
+            tv.insert(worldToTexture(i));
+        }
+        return tv;
     }
-
 
     Object &Object::setOutline(uint8_t o) {
         outline = o;

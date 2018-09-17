@@ -65,7 +65,7 @@ namespace jgl {
     unsigned Line::getWidth() const {
         return thickness;
     }
-    jutil::Queue<jutil::Queue<long double> > Line::genVAO() {
+    jutil::Queue<jml::Vertex> Line::generateVertices() const {
         /*auto s = jgl::getWindow().getSize();
         float yRatio = (float)s.y() / ((float)s.x() / 2.0f);
         jutil::Queue<jutil::Queue<long double> > r = {

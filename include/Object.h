@@ -18,7 +18,6 @@ namespace jgl {
         virtual Object &setColor(const Color&);
         virtual Color getColor() const;
         virtual Object &setMaterial(const Material&);
-        virtual jutil::Queue<jutil::Queue<long double> > getVAO() const;
         virtual long double area() const = 0;
         virtual Object &setFill(bool);
         virtual Object &setOutline(uint8_t);
@@ -40,14 +39,14 @@ namespace jgl {
 
     protected:
 
-        virtual jutil::Queue<jutil::Queue<long double> > genVAO() = 0;
+        virtual jutil::Queue<jml::Vertex> generateVertices() const = 0;
+        virtual jutil::Queue<jml::Vertex> generateTextureVertices() const;
         virtual Object &formShape();
         virtual void loadPolygon();
 
 
         Material material;
 
-        jutil::Queue<jutil::Queue<long double> > polygon;
         jutil::Queue<float> unpackedPolygon;
         jutil::Queue<GLuint> uniforms;
         jutil::Queue<uint32_t> ubos;
@@ -76,7 +75,7 @@ namespace jgl {
 
     private:
 
-
+        jutil::Queue<jml::Vertex> polygon, textureObject;
 
     };
 }

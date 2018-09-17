@@ -19,7 +19,7 @@ namespace jgl {
     private:
         Type type;
         Triangle();
-        jutil::Queue<jutil::Queue<long double> > genVAO();
+        jutil::Queue<jml::Vertex> generateVertices() const override;
     };
 }
 
