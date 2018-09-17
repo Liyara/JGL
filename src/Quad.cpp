@@ -14,10 +14,10 @@ namespace jgl {
     jutil::Queue<jml::Vertex> Quad::generateVertices() const {
 
         jutil::Queue<jml::Vertex> polygon = {
-            {-1.0f, -1.0f},
-            {1.0f, -1.0f},
-            {1.0f, 1.0f},
-            {-1.0f, 1.0f}
+            {-1.f, -1.f},
+            {1.f, -1.f},
+            {1.f, 1.f},
+            {-1.f, 1.f}
 
         };
 

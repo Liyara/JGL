@@ -44,9 +44,8 @@ namespace jgl {
         float wSize[2];             // 8  -> 16
         float rawPosition[2];       // 16 -> 24
         float rawSize[2];           // 24 -> 32
-        float textureArea[2];       // 32 -> 40
-        float origin[2];            // 40 -> 48
-        float cameraPosition[3];    // 48 -> 64
+        float origin[2];            // 32 -> 40
+        float cameraPosition[3];    // 40 -> 56
     } vDrawData;
 
     struct Object::TextureDrawData {
@@ -155,21 +154,6 @@ namespace jgl {
         fDrawData.fcolor[2] = (color.blue() / 255.f);
         fDrawData.fcolor[3] = (color.alpha() / 255.f);
 
-        float w = 0, h = 0, l = 0, r = 0, t = 0, b = 0;
-
-        for (auto &i: textureObject) {
-            if (i[0] < l) l = i[0];
-            if (i[0] > r) r = i[0];
-            if (i[1] < t) t = i[1];
-            if (i[1] > b) b = i[1];
-        }
-
-        w = ((r - l) * size[0]);
-        h = ((b - t) * size[1]);
-
-        vDrawData.textureArea[0] = w;
-        vDrawData.textureArea[1] = h;
-
         vDrawData.origin[0] = origin[0];
         vDrawData.origin[1] = origin[1];
 
@@ -262,6 +246,8 @@ namespace jgl {
     Object &Object::formShape() {
         polygon = generateVertices();
         textureObject = generateTextureVertices();
+
+        jutil::out << textureObject << jutil::endl;
 
         components = 6;
         vertexCount = polygon.size();

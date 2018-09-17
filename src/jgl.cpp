@@ -13,7 +13,6 @@ namespace jgl {
         #define M_PI 3.1415926535897932384626433832795
 
         in vec2 jglTexCoords[16];
-        in vec2 texCoord;
 
         struct LightSource {
             vec2 pos;
@@ -76,7 +75,6 @@ namespace jgl {
             vec2 jglWindowSize;
             vec2 jglObjectPosition;
             vec2 jglObjectSize;
-            vec2 jglObjectTexturedArea;
             vec2 jglObjectOrigin;
             vec3 jglCameraPosition;
         };
@@ -153,7 +151,7 @@ namespace jgl {
         }
 
         vec4 sampleTextures() {
-            /*uint untextured = 1u;
+            uint untextured = 1u;
             float light = 1.0;
             vec3 lightRGB = fromTexture(0, jglTexCoords[0]).rgb;
             for (uint i = 0; i < jglTextureCount; ++i) {
@@ -166,11 +164,7 @@ namespace jgl {
                 }
             }
             if (untextured > 0u) return jglObjectColor;
-            return vec4(lightRGB, 1.0 - light);*/
-
-            vec2 fTexCoord = texCoord;
-
-            return texture(texture0, fTexCoord);
+            return vec4(lightRGB, 1.0 - light);
         }
 
         vec4 jglFragmentShader() {
@@ -202,7 +196,6 @@ namespace jgl {
 
         out vec2 jglTexCoords[16];
         out vec4 jglCoords;
-        out vec2 texCoord;
 
         struct TextureLayer {
             vec2 position;
@@ -219,7 +212,6 @@ namespace jgl {
             vec2 jglWindowSize;
             vec2 jglObjectPosition;
             vec2 jglObjectSize;
-            vec2 jglObjectTexturedArea;
             vec2 jglObjectOrigin;
             vec3 jglCameraPosition;
         };
@@ -317,7 +309,6 @@ namespace jgl {
             vec2 setSize        = layers[id].size;
             vec2 objectSize     = jglObjectSize;
             vec2 scaler         = layers[id].factor;
-            vec2 textureArea    = jglObjectTexturedArea;
             vec2 size           = vec2(1.0);
             vec2 sizeRatio      = rawImageSize / objectSize;
 
@@ -333,14 +324,13 @@ namespace jgl {
 
             if (mode == JGL_VERTEXMODE_MANUAL) {
                 size = objectSize;
-                vertex = textureToWorld(jglTexCoordInput);
             } else if (mode == JGL_VERTEXMODE_RELATIVE) {
                 size = objectSize;
-                vertex = jglVertexCoordInput.xy;
             } else if (mode == JGL_VERTEXMODE_ABSOLUTE) {
                 size = rawImageSize;
-                vertex = textureToWorld(jglTexCoordInput);
             }
+
+            vertex = textureToWorld(jglTexCoordInput);
 
             if (sizeController[0] == JGL_SIZE_CONTROLLER) {
                 setSize[0] = size[0];
@@ -384,9 +374,7 @@ namespace jgl {
                 jglTranslationMatrix(pixelsToScreen(jglObjectPosition, jglWindowSize), pixelsToScreen(jglCameraPosition.xy, jglWindowSize), jglWindowSize)
             );
 
-            //for (uint i = 0u; i < jglTextureCount; ++i) jglTexCoords[i] = jglGetTextureCoordinates(i);
-
-            texCoord = worldToTexture(jglVertexCoordInput.xy);
+            for (uint i = 0u; i < jglTextureCount; ++i) jglTexCoords[i] = jglGetTextureCoordinates(i);
 
             return jglCoords;
         }

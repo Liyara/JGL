@@ -62,7 +62,6 @@ namespace jgl {
             "    vec2 jglWindowSize;\n"
             "    vec2 jglObjectPosition;\n"
             "    vec2 jglObjectSize;\n"
-            "    vec2 jglObjectTexturedArea;\n"
             "    vec2 jglObjectOrigin;\n"
             "    vec3 jglCameraPosition;\n"
             "};\n"
