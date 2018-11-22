@@ -4,58 +4,56 @@
 using namespace jml::literals;
 
 namespace jgl {
-    TextureLayer::TextureLayer(Texture *t, const TextureManifold *m) : Transformable(0, JGL_AUTOMATIC_SIZE, 0_degs), texture(t), manifold(m), scalingFactor(1), sMode(MANUAL) {
-        t->containers.insert(this);
+
+    TextureLayer::TextureLayer(size_t s) : Transformable(0, JGL_AUTOMATIC_SIZE, 0_degs), texture(nullptr), container(nullptr), scalingFactor(1), slot(s), sMode(MANUAL) {}
+
+    TextureLayer::TextureLayer(Texture *t, CompositeTexture *c, size_t s) : Transformable(0, JGL_AUTOMATIC_SIZE, 0_degs), texture(t), container(c), scalingFactor(1), slot(s), sMode(MANUAL) {}
+
+    TextureLayer &TextureLayer::operator=(const TextureLayer &l) {
+        texture = l.texture;
+        rotation = l.rotation;
+        size = l.size;
+        scalingFactor = l.scalingFactor;
+        slot = l.slot;
+        container = l.container;
+        position = l.position;
+        sMode = l.sMode;
+        onUpdate(ALL_DATA);
     }
 
-    TextureLayer &TextureLayer::setZIndex(int8_t i) {
-        zIndex = i;
-        return *this;
-    }
-
-    int8_t TextureLayer::getZIndex() const {
-        return zIndex;
-    }
-
-    const TextureManifold *TextureLayer::getManifold() const {
-        return manifold;
-    }
-
-    const Texture *TextureLayer::getTexture() const {
-        return texture;
+    void TextureLayer::recreate(Texture *t) {
+        (*this) = TextureLayer(t, container, slot);
     }
 
     TextureLayer::~TextureLayer() {
-        for (auto it = texture->containers.begin(); it != texture->containers.end(); ++it) {
-            if (*it == this) {
-                texture->containers.erase(it);
-                break;
-            }
-        }
+
     }
 
-    TextureMode TextureLayer::getScalingMode() const {
+    DefaultSize TextureLayer::getScalingMode() const {
         return sMode;
     }
 
     const Dimensions &TextureLayer::getImageSize() const {
-        return texture->size;
+        return texture->getSize();
     }
 
-    TextureLayer &TextureLayer::setScalingMode(TextureMode m) {
+    TextureLayer &TextureLayer::setScalingMode(DefaultSize m) {
         sMode = m;
+        onUpdate(SIZE_MODE);
         return *this;
     }
 
     Scalable &TextureLayer::setSize(const Dimensions &d) {
         Scalable &r = Scalable::setSize(d);
         scalingFactor = {1.f, 1.f};
+        onUpdate(SIZE | SCALING_FACTOR);
         return r;
     }
 
     Scalable &TextureLayer::scale(const jml::Vector2f &d) {
         scalingFactor[0] *= d[0];
         scalingFactor[1] *= d[1];
+        onUpdate(SCALING_FACTOR);
         return *this;
     }
 
@@ -63,15 +61,57 @@ namespace jgl {
         return scalingFactor;
     }
 
-    bool TextureLayer::operator==(const TextureLayer &t) {
-        return zIndex == t.zIndex;
+    MapChannel TextureLayer::getMapChannel() const {
+        return static_cast<MapChannel>(slot);
     }
 
-    bool TextureLayer::operator>(const TextureLayer &t) {
-        return zIndex > t.zIndex;
+    Slot TextureLayer::getSlot() const {
+        return static_cast<Slot>(slot);
     }
 
-    bool TextureLayer::operator<(const TextureLayer &t) {
-        return zIndex < t.zIndex;
+    void TextureLayer::onUpdate(uint16_t ups) {
+
+    }
+
+    TextureLayer &TextureLayer::reseat(uint32_t s) {
+        slot = s;
+        onUpdate(SLOT_ID);
+        return *this;
+    }
+
+    Translatable &TextureLayer::setPosition(const Position &p) {
+        Translatable::setPosition(p);
+        onUpdate(POSITION);
+        return *this;
+    }
+    Rotatable &TextureLayer::setRotation(const jml::Angle &a) {
+        Rotatable::setRotation(a);
+        onUpdate(ROTATION);
+        return *this;
+    }
+
+    TextureLayer &TextureLayer::setScalingFactor(const jml::Vector2f &d) {
+        scalingFactor[0] = d[0];
+        scalingFactor[1] = d[1];
+        onUpdate(SCALING_FACTOR);
+        return *this;
+    }
+
+    Texture *const TextureLayer::getTexture() const {
+        return texture;
+    }
+
+    CompositeTexture *const TextureLayer::getCompositer() const {
+        return container;
+    }
+    TextureLayer &TextureLayer::setTexture(Texture *t) {
+        texture = t;
+        onUpdate(TEXTURE_PTR);
+        return *this;
+    }
+    TextureLayer &TextureLayer::setCompositer(CompositeTexture *c) {
+        container = c;
+        onUpdate(COMPOSITE_PTR);
+        return *this;
     }
 }

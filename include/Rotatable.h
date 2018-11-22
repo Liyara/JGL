@@ -8,8 +8,8 @@ namespace jgl {
     public:
         Rotatable(const jml::Angle&);
 
-        Rotatable &setRotation(const jml::Angle&);
-        Rotatable &rotate(const jml::Angle&);
+        virtual Rotatable &setRotation(const jml::Angle&);
+        virtual Rotatable &rotate(const jml::Angle&);
 
         const jml::Angle &getRotation() const;
 

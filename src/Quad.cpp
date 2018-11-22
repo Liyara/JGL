@@ -8,7 +8,7 @@ namespace jgl {
     }
 
     Quad::Quad() : Object({0, 0}, {0, 0}, Color::White) {}
-
+    Quad::Quad(const Quad &q) : Object(q) {}
 
 
     jutil::Queue<jml::Vertex> Quad::generateVertices() const {

@@ -13,7 +13,7 @@
 #include "Line.h"
 #include "Shader.h"
 
-#define JGL_POS_MIDDLE -0xffa012e
+#define JGL_POS_MIDDLE 0xffa012e
 
 namespace jgl {
 
@@ -48,13 +48,14 @@ namespace jgl {
     long double getFrameTime(unsigned);
     void setFrameTimeLimit(long double);
 
-    Shader getDefaultShader();
-    void setDefaultShader(const Shader&);
+    Shader *getDefaultShader();
 
-    GLuint getDefaultFragmentShader();
-    GLuint getDefaultVertexShader();
+    ShaderFile *getDefaultFragmentShader();
+    ShaderFile *getDefaultVertexShader();
 
     void setVsyncEnabled(bool);
+
+    float getOpenGLVersion();
 
     GLFWwindow *getWindowHandle();
 

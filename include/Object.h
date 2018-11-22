@@ -4,17 +4,18 @@
 #include "Window.h"
 #include "Shader.h"
 #include "Material.h"
-#include "TextureManifold.h"
+#include "CompositeTexture.h"
 
 #define _JGL_TEXTURE_SEGMENT            GL_TEXTURE0
 #define _JGL_TEXTURE_SEGMENT_LENGTH     0x10
 
 namespace jgl {
 
-    class Object : public Renderable, public Transformable, public TextureManifold {
+    class Object : public Renderable, public Transformable, public Resource {
     public:
 
         Object(const Position&, const Dimensions&, const Color&);
+        Object(const Object&);
         virtual Object &setColor(const Color&);
         virtual Color getColor() const;
         virtual Object &setMaterial(const Material&);
@@ -23,12 +24,14 @@ namespace jgl {
         virtual Object &setOutline(uint8_t);
         virtual uint8_t getOutline() const;
         virtual Object &setOutlineColor(const Color&);
-        virtual Object &useShader(const Shader&);
+        virtual Object &useShader(Shader*);
         virtual Object &setMode(GLenum);
         virtual GLenum getMode() const;
         virtual jutil::Queue<jml::Vertex> getVertices();
         virtual Object &setOrigin(const jml::Vector2f&);
         virtual const jml::Vector2f &getOrigin() const;
+        virtual Object &setTexture(Texture*);
+        virtual Object &setTexture(CompositeTexture*);
 
         virtual ~Object();
 
@@ -44,6 +47,8 @@ namespace jgl {
         virtual Object &formShape();
         virtual void loadPolygon();
 
+        Texture *singleTexture;
+        CompositeTexture *multiTexture;
 
         Material material;
 
@@ -51,7 +56,7 @@ namespace jgl {
         jutil::Queue<GLuint> uniforms;
         jutil::Queue<uint32_t> ubos;
 
-        Shader shader;
+        Shader *shader;
 
         jml::Vector<float, 3> norm;
         jml::Vector2f origin;
@@ -61,7 +66,7 @@ namespace jgl {
         size_t vertexCount;
         unsigned components;
         uint8_t outline, tMode;
-        uint32_t vbo, fbo;
+        uint32_t fbo;
 
         bool formed, fill, valid;
 
@@ -76,6 +81,8 @@ namespace jgl {
     private:
 
         jutil::Queue<jml::Vertex> polygon, textureObject;
+        Resource &generate();
+        Resource &destroy();
 
     };
 }

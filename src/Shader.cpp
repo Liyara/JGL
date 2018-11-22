@@ -7,44 +7,35 @@ namespace jgl {
 
     Shader *Shader::active;
 
-    Shader::Shader() : Shader(0) {}
-    Shader::Shader(GLuint p) : frag(0), vert(0), program(p) {}
-    Shader::Shader(GLuint v, GLuint f) : frag(f), vert(v), program(createProgram()) {}
-    Shader::Shader(const jutil::String &v, const jutil::String &f) : Shader(createShader(GL_VERTEX_SHADER, v), createShader(GL_FRAGMENT_SHADER, f)) {}
-    Shader::Shader(GLuint v, const jutil::String &f) : Shader(v, createShader(GL_FRAGMENT_SHADER, f)) {}
-    Shader::Shader(const jutil::String &v, GLuint f) : Shader(createShader(GL_VERTEX_SHADER, v), f) {}
-    Shader::Shader(const jutil::File &v, const jutil::File &f) : Shader(createShader(GL_VERTEX_SHADER, v), createShader(GL_FRAGMENT_SHADER, f)) {}
-    Shader::Shader(const jutil::File &v, const jutil::String &f) : Shader(createShader(GL_VERTEX_SHADER, v), createShader(GL_FRAGMENT_SHADER, f))  {}
-    Shader::Shader(const jutil::File &v, GLuint f) : Shader(createShader(GL_VERTEX_SHADER, v), f) {}
-    Shader::Shader(const jutil::String &v, const jutil::File &f) : Shader(createShader(GL_VERTEX_SHADER, v), createShader(GL_FRAGMENT_SHADER, f)) {}
-    Shader::Shader(GLuint v, const jutil::File &f) : Shader(v, createShader(GL_FRAGMENT_SHADER, f)) {}
 
-    GLuint Shader::getProgram() const {
-        return program;
-    }
-
-    GLuint Shader::createShader(GLenum e, const jutil::File &file) {
-        jutil::String strShaderFile = "", line = "";
+    ShaderFile::ShaderFile(ShaderFileType t, const jutil::File &file) : Resource(ResourceType::SHADER), fType(t) {
+        fileData = "";
+        jutil::String line = "";
         size_t max_file_len = 5000;
-        strShaderFile.reserve(max_file_len);
+        fileData.reserve(max_file_len);
         line.reserve(max_file_len);
         while (!file.eof()) {
             file >> line;
-            strShaderFile += line;
+            fileData += line;
         }
 
-        jutil::out << strShaderFile << jutil::endl;
-
-        return createShader(e, strShaderFile);
+        generate();
     }
-
-    GLuint Shader::createShader(GLenum eShaderType, jutil::String strShaderFile) {
-
-        strShaderFile.replace(jutil::String("#version jgl vertex"), jutil::String(
+    ShaderFile::ShaderFile(ShaderFileType t, const jutil::String &str) : Resource(ResourceType::SHADER),  fType(t), fileData(str) {
+        generate();
+    }
+    ShaderFile::ShaderFile(const ShaderFile &f) : Resource(f._type, f._id), fType(f.fType), fileData(f.fileData) {
+        acquire();
+    }
+    ShaderFile::~ShaderFile() {
+        release();
+    }
+    Resource &ShaderFile::generate() {
+        fileData.replace(jutil::String("#version jgl vertex"), jutil::String(
             "#version " + shaderVersion + "\n"
             "#include jglVertexShader\n"
         ));
-        strShaderFile.replace(jutil::String("#include jglVertexShader"), jutil::String(
+        fileData.replace(jutil::String("#include jglVertexShader"), jutil::String(
             "vec4 jglGetVertexInput();\n"
             "vec2 worldToTexture(vec2);\n"
             "vec4 jglVertexShader();\n"
@@ -66,11 +57,11 @@ namespace jgl {
             "    vec3 jglCameraPosition;\n"
             "};\n"
         ));
-        strShaderFile.replace(jutil::String("#version jgl fragment"), jutil::String(
+        fileData.replace(jutil::String("#version jgl fragment"), jutil::String(
             "#version " + shaderVersion + "\n"
             "#include jglFragmentShader\n"
         ));
-        strShaderFile.replace(jutil::String("#include jglFragmentShader"), jutil::String(
+        fileData.replace(jutil::String("#include jglFragmentShader"), jutil::String(
             "vec4 fromTexture(uint, vec2);\n"
             "vec4 jglFragmentApplyLighting(vec4, int);\n"
             "vec4 sampleTextures();\n"
@@ -79,109 +70,125 @@ namespace jgl {
             "    uint jglTextureCount;\n"
             "    int jglLightingMode;\n"
             "    int jglLightCount;\n"
+            "    uint blendingMode;\n"
             "    vec4 jglObjectColor;\n"
             "    vec3 jglCameraNormal;\n"
             "};\n"
         ));
 
-        char strProto[strShaderFile.size() + 1];
-        strShaderFile.array(strProto);
+        char strProto[fileData.size() + 1];
+        fileData.array(strProto);
         const char *strFileData = strProto;
-        strProto[strShaderFile.size()] = '\0';
-        GLuint shader = glCreateShader(eShaderType);
-        glShaderSource(shader, 1, &strFileData, NULL);
+        strProto[fileData.size()] = '\0';
+        _id = glCreateShader(static_cast<GLenum>(fType));
+        glShaderSource(_id, 1, &strFileData, NULL);
 
-        glCompileShader(shader);
+        glCompileShader(_id);
 
         GLint status;
-        glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
+        glGetShaderiv(_id, GL_COMPILE_STATUS, &status);
         if (status == GL_FALSE) {
             GLint infoLogLength;
-            glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLogLength);
+            glGetShaderiv(_id, GL_INFO_LOG_LENGTH, &infoLogLength);
 
             GLchar *strInfoLog = new GLchar[infoLogLength + 1];
-            glGetShaderInfoLog(shader, infoLogLength, NULL, strInfoLog);
+            glGetShaderInfoLog(_id, infoLogLength, NULL, strInfoLog);
 
             const char *strShaderType = NULL;
-            switch(eShaderType) {
-                case GL_VERTEX_SHADER: strShaderType = "vertex"; break;
-                case GL_GEOMETRY_SHADER: strShaderType = "geometry"; break;
-                case GL_FRAGMENT_SHADER: strShaderType = "fragment"; break;
+            switch(fType) {
+                case VERTEX: strShaderType = "vertex"; break;
+                case GEOMETRY: strShaderType = "geometry"; break;
+                case FRAGMENT: strShaderType = "fragment"; break;
             }
 
-            jutil::err << "Compile failure in " << strShaderType << "shader: \n" << strInfoLog << jutil::endl;
+            jutil::err << "Compile failure in " << strShaderType << " shader: \n" << strInfoLog << jutil::endl;
             delete[] strInfoLog;
         }
-
-        return shader;
+        acquire();
+        return *this;
+    }
+    Resource &ShaderFile::destroy() {
+        glDeleteShader(_id);
+        return *this;
     }
 
-    GLuint Shader::createProgram() {
-        GLuint program = glCreateProgram();
+    const ShaderFileType &ShaderFile::shaderType() const {
+        return fType;
+    }
 
-        glAttachShader(program, vert);
-        glAttachShader(program, getDefaultVertexShader());
-        glAttachShader(program, frag);
-        glAttachShader(program, getDefaultFragmentShader());
+    Shader::Shader(const jutil::Queue<ShaderFile*> &q) : Resource(ResourceType::PROGRAM), files(q) {
+        generate();
+    }
+    Shader::Shader(const Shader &s) :  Resource(s._type, s._id), files(s.files) {
+        acquire();
+    }
 
-        glLinkProgram(program);
-
-        GLint status;
-        glGetProgramiv (program, GL_LINK_STATUS, &status);
-        if (status == GL_FALSE) {
-            GLint infoLogLength;
-            glGetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLogLength);
-
-            GLchar *strInfoLog = new GLchar[infoLogLength + 1];
-            glGetProgramInfoLog(program, infoLogLength, NULL, strInfoLog);
-            jutil::err << "Link failure: " << strInfoLog << jutil::endl;
-            delete[] strInfoLog;
+    const jutil::Queue<ShaderFile*> &Shader::getShaderFiles() const {
+        return files;
+    }
+    jutil::Queue<ShaderFile*> Shader::getShaderFiles(ShaderFileType t) const {
+        jutil::Queue<ShaderFile*> r;
+        r.reserve(files.size());
+        for (auto &i: files) {
+            if (i->shaderType() == t) r.insert(i);
         }
-
-        glDetachShader(program, vert);
-        glDetachShader(program, getDefaultVertexShader());
-        glDetachShader(program, frag);
-        glDetachShader(program, getDefaultFragmentShader());
-        return program;
+        return r;
     }
+
 
     bool Shader::hasUniform(const char *cstrName) const {
-        return (glGetUniformLocation(program, cstrName) == -1);
+        return (glGetUniformLocation(_id, cstrName) == -1);
     }
 
     GLuint Shader::getUniformID(const char *cstrName) const {
-        return glGetUniformLocation(program, cstrName);
+        return glGetUniformLocation(_id, cstrName);
     }
 
     void Shader::setActive(Shader *s) {
         active = s;
-        if (s) glUseProgram(s->program);
+        if (s) glUseProgram(s->_id);
         else glUseProgram(0);
     }
+
     Shader *Shader::getActive() {
         return active;
     }
-    Shader::~Shader() {}
-    Shader::Shader(const Shader &s) {
-        *this = s;
+
+    Shader::~Shader() {
+        release();
     }
-    Shader::Shader(Shader &&s) {
-        *this = jutil::move(s);
-    }
-    Shader &Shader::operator=(const Shader &s) {
-        frag = s.frag;
-        vert = s.vert;
-        program = s.program;
+
+    Resource &Shader::generate() {
+        _id = glCreateProgram();
+
+        glAttachShader(_id, getDefaultVertexShader()->id());
+        glAttachShader(_id, getDefaultFragmentShader()->id());
+
+        for (auto &i: files) glAttachShader(_id, i->id());
+
+        glLinkProgram(_id);
+
+        GLint status;
+        glGetProgramiv (_id, GL_LINK_STATUS, &status);
+        if (status == GL_FALSE) {
+            GLint infoLogLength;
+            glGetProgramiv(_id, GL_INFO_LOG_LENGTH, &infoLogLength);
+
+            GLchar *strInfoLog = new GLchar[infoLogLength + 1];
+            glGetProgramInfoLog(_id, infoLogLength, NULL, strInfoLog);
+            jutil::err << "Link failure: " << strInfoLog << jutil::endl;
+            delete[] strInfoLog;
+        }
+
+        glDetachShader(_id, getDefaultVertexShader()->id());
+        glDetachShader(_id, getDefaultFragmentShader()->id());
+
+        for (auto &i: files) glDetachShader(_id, i->id());
+        acquire();
         return *this;
     }
-    Shader &Shader::operator=(Shader &&s) {
-        frag = s.frag;
-        vert = s.vert;
-        program = s.program;
-
-        s.frag = 0;
-        s.vert = 0;
-        s.program = 0;
+    Resource &Shader::destroy() {
+        glDeleteProgram(_id);
         return *this;
     }
 }

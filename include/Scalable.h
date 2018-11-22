@@ -3,6 +3,8 @@
 
 #include <Vector.hpp>
 
+#define JGL_AUTOMATIC_SIZE  (unsigned)(-1)
+
 namespace jgl {
 
     typedef jml::Vector2u Dimensions;

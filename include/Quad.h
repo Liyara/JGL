@@ -7,6 +7,7 @@ namespace jgl {
     struct Quad : public Object {
     public:
         Quad(const Position&, const Dimensions&, const Color& = Color::White);
+        Quad(const Quad&);
 
         void texTest();
 

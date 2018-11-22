@@ -5,6 +5,7 @@
 #include "color.hpp"
 #include "LightSource.h"
 #include "Transformable.h"
+#include "Mesh.h"
 
 namespace jgl {
 

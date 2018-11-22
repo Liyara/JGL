@@ -12,7 +12,7 @@ namespace jgl {
         Position getOrigin() const;
         Position getBearing() const;
         Position nextPosition() const;
-        uint32_t getTexture() const;
+        const Image &getImage() const;
         Dimensions getSize() const;
 
         unsigned getFontSize() const;
@@ -28,7 +28,7 @@ namespace jgl {
         Dimensions size;
         jutil::String file;
         unsigned fSize;
-        uint32_t texture;
+        Image image;
     };
 }
 

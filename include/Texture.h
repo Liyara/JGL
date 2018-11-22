@@ -1,13 +1,16 @@
 #ifndef JGL_TEXTURE_H
 #define JGL_TEXTURE_H
 
-#include "Screen.h"
+#include "Image.h"
+
+#define JGL_FIRST_FRAME     (unsigned)-4;
+#define JGL_LAST_FRAME      (unsigned)-3;
+#define JGL_ALL_FRAMES      (unsigned)-2;
+#define JGL_CURRENT_FRAME   (unsigned)-1;
 
 namespace jgl {
 
     class TextureLayer;
-
-    typedef uint32_t TextureID;
 
     class Shader;
 
@@ -29,71 +32,50 @@ namespace jgl {
         RGBA    = 0x0f
     };
 
+    enum AnimationMode {
+        DEFAULT,
+        PAUSED,
+        PLAY,
+        LOOP,
+        PLAY_REVERSE,
+        LOOP_REVERSE,
+        PLAY_MIRRORED,
+        LOOP_MIRRORED,
+        RANDOM
+    };
+
     class Texture : public Scalable {
     public:
         Texture();
+        Texture(const Image&);
         Texture(const jutil::String&);
-        Texture(const Color&, const Dimensions&);
         Texture(const Texture&);
+        Texture(const Shader&);
+        Texture(const Screen&);
         Texture(Texture&&);
 
         Texture &operator=(const Texture&);
         Texture &operator=(Texture&&);
 
+        Image &operator*();
+        Image *operator->();
+
         Texture &load(const jutil::String&);
-        Texture &load(TextureID);
-        Texture &load(jutil::Queue<uint32_t>, const Dimensions&);
-        Texture &load(const jutil::Queue<uint8_t>&, const Dimensions&, uint8_t = RGBA);
-        Texture &load(jutil::Queue<Color>, const Dimensions&);
+        Texture &load(const Image&);
         Texture &load(const Texture&);
-        Texture &load(const Color&, const Dimensions&);
+        Texture &load(Texture&&);
+        Texture &load(const Shader&);
         Texture &load(const Screen&);
-        Texture &load(const Renderable*, const Dimensions&);
-        Texture &load(const Shader&, const Dimensions&);
 
-        Texture &copy(const Texture&);
-
-        TextureID getID() const;
-
-        Texture &addFilters(uint16_t);
-        Texture &removeFilters(uint16_t);
-        bool hasFilters(uint16_t) const;
-
-        bool hasChannels(uint8_t) const;
-
-        long double getContrast() const;
-        long double getSaturation() const;
-        long double getBrightness() const;
-
-        Texture &setContrast(long double);
-        Texture &setSaturation(long double);
-        Texture &setBrightness(long double);
-
-        Texture &swap(uint8_t, uint8_t);
-        Texture &clear(uint8_t = RGBA);
+        const ResourceID &id() const;
+        const Image::Handle &handle();
 
         virtual ~Texture();
-
     private:
-
-        using Scalable::scale;
-        using Scalable::setSize;
-
-        void initialize();
-        void update(jutil::Queue<Color>*);
-
-        TextureID id;
-        uint8_t channels;
-        uint16_t filters;
-        long double contrast, saturation, brightness;
-
-        void notifyLayers();
-
-        friend class TextureLayer;
-
-        jutil::Queue<TextureLayer*> containers;
-
+        Image rawData;
     };
+
+    size_t supportedTextureUnits();
 }
 
 #endif // JGL_TEXTURE_H

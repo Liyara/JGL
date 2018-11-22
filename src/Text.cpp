@@ -80,15 +80,24 @@ namespace jgl {
         }
     )glsl";
 
+    ShaderFile *VERTEX_FILE;
+    ShaderFile *FRAGMENT_FILE;
+    Shader *textShader;
+
+    void textInit() {
+        VERTEX_FILE = new ShaderFile(VERTEX, VERTEX_TEXT);
+        FRAGMENT_FILE = new ShaderFile(FRAGMENT, FRAGMENT_TEXT);
+        textShader = new Shader({VERTEX_FILE, FRAGMENT_FILE});
+    }
+
+    void textDestroy() {
+        delete VERTEX_FILE;
+        delete FRAGMENT_FILE;
+        delete textShader;
+    }
+
     Text::Text(const Font *f, const jutil::String &s, const Position &p, const Color &c) : Quad(p, 0, c), font(f), str(s), valid(false), line(0), filters(0) {
-        useShader(Shader(VERTEX_TEXT, FRAGMENT_TEXT));
-        glGenTextures(1, &textMask);
-        glBindTexture(GL_TEXTURE_2D, textMask);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glBindTexture(GL_TEXTURE_2D, 0);
+        useShader(textShader);
         buildTexture();
     }
 
@@ -111,10 +120,9 @@ namespace jgl {
 
     void Text::render(const Screen *scr) {
         if (!valid) buildTexture();
-        shader.setUniform("mask", _JGL_TEXTURE_SEGMENT_LENGTH);
-        //if (filters & Filter::SHARPEN) shader.setUniform("sharpen", (unsigned)true);
+        shader->setUniform("mask", _JGL_TEXTURE_SEGMENT_LENGTH);
         glActiveTexture(_JGL_TEXT_SEGMENT);
-        glBindTexture(GL_TEXTURE_2D, textMask);
+        glBindTexture(GL_TEXTURE_2D, textImage.id());
         Quad::render(scr);
     }
 
@@ -123,17 +131,17 @@ namespace jgl {
         const Character *c = NULL;
         unsigned char *empty = (unsigned char*)calloc(maskSize.x() * maskSize.y(), sizeof(unsigned char));
         Dimensions cDim;
-        glBindTexture(GL_TEXTURE_2D, textMask);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, maskSize.x(), maskSize.y(), 0, GL_ALPHA, GL_UNSIGNED_BYTE, NULL);
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, maskSize.x(), maskSize.y(), GL_ALPHA, GL_UNSIGNED_BYTE, empty);
-        glBindTexture(GL_TEXTURE_2D, 0);
+        textImage.setSize(maskSize);
+        textImage->setSize(maskSize);
+        textImage->clear(0);
+
         unsigned cursor = 0;
         for (auto &i: str) {
             c = font->getCharacter(i);
             cDim = c->getSize();
             cursor += c->getBearing().x();
             auto offsetY = (line - cDim.y()) + (cDim.y() - c->getBearing().y());
-            glCopyImageSubData(c->getTexture(), GL_TEXTURE_2D, 0, 0, 0, 0, textMask, GL_TEXTURE_2D, 0, cursor, offsetY, 0, cDim.x(), cDim.y(), 1);
+            c->getImage().blit(*textImage, 0, {cursor, offsetY}, cDim);
             cursor += c->nextPosition().x();
         }
         size = maskSize;

@@ -40,13 +40,16 @@ namespace jgl {
         jutil::String str;
         unsigned line;
         bool valid;
-        uint32_t textMask;
+        Texture textImage;
         Dimensions maskSize;
         uint32_t filters;
 
         void buildTexture();
         Dimensions calcTextureSize();
     };
+
+    void textInit();
+    void textDestroy();
 }
 
 #endif // JGL_TEXT

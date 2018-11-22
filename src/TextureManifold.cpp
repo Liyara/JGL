@@ -11,21 +11,8 @@ namespace jgl {
     TextureManifold::TextureManifold() {}
 
     TextureManifold &TextureManifold::addTexture(Texture *t, int8_t index) {
-        if (index == JGL_DEFAULT_TEXTURE_INDEX) {
-            if (layers.empty()) index = 0;
-            else index = layers.last().getZIndex() + 1;
-        }
         TextureLayer newLayer = TextureLayer(t, this);
         newLayer.setZIndex(index);
-        if (layers.empty() || index > layers.last().getZIndex()) layers.insert(newLayer);
-        else {
-            for (size_t i = 0; i < layers.size(); ++i) {
-                if (index <= layers[i].getZIndex()) {
-                    layers.insert(newLayer, i);
-                    break;
-                }
-            }
-        }
         updateLayers();
         return *this;
     }
@@ -38,6 +25,7 @@ namespace jgl {
         updateLayers();
         return *this;
     }
+
     bool TextureManifold::hasTexture(const Texture *t) const {
         SINGLE_TEXTURE_OPERATION(return true);
         return false;

@@ -45,11 +45,11 @@ namespace jgl {
         }
     )glsl";
 
-    Shader shader;
+    //Shader shader;
     //Window *window = NULL;
 
     void initializeScreens() {
-        shader = Shader(jutil::String(SCREEN_VERT), jutil::String(SCREEN_FRAG));
+        //shader = Shader(jutil::String(SCREEN_VERT), jutil::String(SCREEN_FRAG));
         //window = getWindow();
     }
 

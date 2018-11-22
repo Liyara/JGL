@@ -44,30 +44,16 @@ namespace jgl {
             origin.y() = ((size.y() / 2.0)) - (size.y() - bearing.y());
             origin.x() = (-(size.x() / 2.0)) - bearing.x();
 
-            glGenTextures(1, &texture);
-            glBindTexture(GL_TEXTURE_2D, texture);
-            glTexImage2D(
-                GL_TEXTURE_2D,
-                0,
-                GL_ALPHA,
-                size.x(),
-                size.y(),
-                0,
-                GL_ALPHA,
-                GL_UNSIGNED_BYTE,
-                dat->bitmap.buffer
-            );
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            WordArray imageData;
+            imageData.reserve(size.x() * size.y());
+            for (size_t i = 0; i < size.x() * size.y(); ++i) {
+                imageData.insert(dat->bitmap.buffer[i]);
+            }
 
-            glBindTexture(GL_TEXTURE_2D, 0);
+            image.setImageData(imageData, size);
 
             FT_Done_Face(face);
         }
-
-
     }
 
     Character::~Character() {}
@@ -95,8 +81,8 @@ namespace jgl {
         return file;
     }
 
-    uint32_t Character::getTexture() const {
-        return texture;
+    const Image &Character::getImage() const {
+        return image;
     }
 
     Dimensions Character::getSize() const {

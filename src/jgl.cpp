@@ -9,10 +9,24 @@ namespace jgl {
 
     const char *FRAGMENT_SHADER = R"glsl(
         #version 440 core
+        #extension GL_ARB_bindless_texture : require
 
         #define M_PI 3.1415926535897932384626433832795
 
-        in vec2 jglTexCoords[16];
+        #define JGL_BLENDMODE_STACK     0u
+        #define JGL_BLENDMODE_COMBINE   1u
+        #define JGL_BLENDMODE_MAP       2u
+
+        #define JGL_CHANNEL_NONE        0u
+        #define JGL_CHANNEL_RED         1u
+        #define JGL_CHANNEL_GREEN       2u
+        #define JGL_CHANNEL_BLUE        3u
+        #define JGL_CHANNEL_ALPHA       4u
+
+        in vec2 jglTexCoords0[24];
+        in vec2 jglTexCoords1[24];
+
+        in vec2 jglVertexAsTexture;
 
         struct LightSource {
             vec2 pos;
@@ -26,46 +40,20 @@ namespace jgl {
             vec3 specular;
             float shine;
         };
+
+        struct TextureLayer {
+            vec2 position;
+            vec2 size;
+            vec2 imageSize;
+            vec2 factor;
+            uvec2 controller;
+            float rotation;
+            uint vertexMode;
+            uint mapChannel;
+        };
+
         uniform Material material;
 
-        ///texture in use
-        uniform sampler2D texture0;
-        uniform sampler2D texture1;
-        uniform sampler2D texture2;
-        uniform sampler2D texture3;
-        uniform sampler2D texture4;
-        uniform sampler2D texture5;
-        uniform sampler2D texture6;
-        uniform sampler2D texture7;
-        uniform sampler2D texture8;
-        uniform sampler2D texture9;
-        uniform sampler2D texture10;
-        uniform sampler2D texture11;
-        uniform sampler2D texture12;
-        uniform sampler2D texture13;
-        uniform sampler2D texture14;
-        uniform sampler2D texture15;
-
-        vec4 fromTexture(uint id, vec2 coord) {
-            switch(id) {
-                case 0u: return texture2D(texture0, coord);
-                case 1u: return texture2D(texture1, coord);
-                case 2u: return texture2D(texture2, coord);
-                case 3u: return texture2D(texture3, coord);
-                case 4u: return texture2D(texture4, coord);
-                case 5u: return texture2D(texture5, coord);
-                case 6u: return texture2D(texture6, coord);
-                case 7u: return texture2D(texture7, coord);
-                case 8u: return texture2D(texture8, coord);
-                case 9u: return texture2D(texture9, coord);
-                case 10u: return texture2D(texture10, coord);
-                case 11u: return texture2D(texture11, coord);
-                case 12u: return texture2D(texture12, coord);
-                case 13u: return texture2D(texture13, coord);
-                case 14u: return texture2D(texture14, coord);
-                case 15u: return texture2D(texture15, coord);
-            }
-        }
 
         ///MAX 128 lights in scene
         uniform LightSource lights[128];
@@ -83,9 +71,22 @@ namespace jgl {
             uint jglTextureCount;
             int jglLightingMode;
             int jglLightCount;
+            uint blendingMode;
             vec4 jglObjectColor;
             vec3 jglCameraNormal;
         };
+
+        layout (std140, binding = 2) uniform TextureDrawData {
+            TextureLayer layers[0x30];
+            uint sep[0x30];
+            uint link[0x30];
+            uint connect[0x30];
+        };
+
+        layout (std140, binding = 3) uniform TexturePool {
+            sampler2D textures[48];
+        };
+
         vec4 jglFragmentApplyLighting(vec4 initColor, int lightingMode) {
 
             float rand = gl_FragCoord.x * 353.0 + gl_FragCoord.y * 769.0;
@@ -150,33 +151,81 @@ namespace jgl {
 
         }
 
-        vec4 sampleTextures() {
-            uint untextured = 1u;
+        vec2 getTextureVertex(uint i) {
+            if (i < 24) {
+                return jglTexCoords0[i];
+            } else {
+                return jglTexCoords1[i - 24];
+            }
+        }
+
+        vec4 blendTexels(vec4 texelA, vec4 texelB, uint blender) {
+            switch (blender) {
+            case JGL_BLENDMODE_STACK:
+                float alpha = 1.0 - ((1.0 - texelA.a) * (1.0 - texelB.a));
+                vec3 rgb = (texelA.rgb * (1.0 - texelB.a)) + (texelB.rgb * texelB.a);
+                return vec4(rgb, alpha);
+            case JGL_BLENDMODE_COMBINE:
+                return (texelA + texelB) / 2.0;
+            }
+        }
+
+        vec4 blendSegment(vec4 samples[4], uint filled, uint blendingMode) {
             float light = 1.0;
-            vec3 lightRGB = fromTexture(0, jglTexCoords[0]).rgb;
-            for (uint i = 0; i < jglTextureCount; ++i) {
-                if (jglTexCoords[i].x > -0.0001 && jglTexCoords[i].y > -0.0001 && jglTexCoords[i].x < 1.0001 && jglTexCoords[i].y < 1.0001) untextured = 0u;
-                vec4 layer = fromTexture(i, jglTexCoords[i]);
-                light *= 1.0 - layer.a;
+            vec3 lightRGB = samples[0].rgb;
+            vec4 additiveFrag = vec4(0.0);
+            for (uint i = 0; i < filled; ++i) {
+                light *= 1.0 - samples[i].a;
+                additiveFrag += samples[i];
                 if (i > 0u) {
-                    lightRGB *= 1.0 - layer.a;
-                    lightRGB += layer.rgb * layer.a;
+                    lightRGB *= 1.0 - samples[i].a;
+                    lightRGB += samples[i].rgb * samples[i].a;
                 }
             }
-            if (untextured > 0u) return jglObjectColor;
-            return vec4(lightRGB, 1.0 - light);
+            if (blendingMode == JGL_BLENDMODE_STACK) return vec4(lightRGB, 1.0 - light);
+            else if (blendingMode == JGL_BLENDMODE_COMBINE) return additiveFrag / filled;
+        }
+
+        vec4 sampleTextures() {
+            //phease 0
+            uint tIndex = 0;
+            vec4 results[12];
+            vec4 finalTexel;
+            uint segmentsLoaded = 0;
+            uint textured = 0u;
+            vec2 texCoords;
+            for (uint i = 0; i < 12; ++i) {
+                vec4 samples[4];
+                uint slotsLoaded = 0;
+                for (uint ii = 0; ii < 4; ++ii) {
+                    if (tIndex >= jglTextureCount) break;
+                    texCoords = getTextureVertex(tIndex);
+                    if (texCoords.x > -0.0001 && texCoords.y > -0.0001 && texCoords.x < 1.0001 && texCoords.y < 1.0001) textured = 1u;
+                    samples[ii] = texture(textures[tIndex], getTextureVertex(tIndex));
+                    ++slotsLoaded;
+                    ++tIndex;
+                    if (tIndex == sep[i]) break;
+                }
+                if (slotsLoaded > 0u) {
+                    results[i] = blendSegment(samples, slotsLoaded, link[i]);
+                    ++segmentsLoaded;
+                } else break;
+            }
+
+            //phase 1
+            if (textured == 0u) return jglObjectColor;
+            if (segmentsLoaded > 0u) {
+                finalTexel = results[0];
+                for (uint i = 1; i < segmentsLoaded; ++i) {
+                    finalTexel = blendTexels(finalTexel, results[i], connect[i]);
+                }
+                return finalTexel;
+            } else return jglObjectColor;
         }
 
         vec4 jglFragmentShader() {
 
-            vec4 fragColor;
-
-            if (jglTextureCount > 0u) fragColor = sampleTextures();
-            else fragColor = jglObjectColor;
-
-            if (jglLightingMode > 0) jglFragmentApplyLighting(fragColor, jglLightingMode);
-
-            return fragColor;
+            return sampleTextures();
         }
 
     )glsl";
@@ -194,8 +243,11 @@ namespace jgl {
         layout(location=0) in vec4 jglVertexCoordInput;
         layout(location=1) in vec2 jglTexCoordInput;
 
-        out vec2 jglTexCoords[16];
+        out vec2 jglTexCoords0[24];
+        out vec2 jglTexCoords1[24];
+
         out vec4 jglCoords;
+        out vec2 jglVertexAsTexture;
 
         struct TextureLayer {
             vec2 position;
@@ -205,6 +257,14 @@ namespace jgl {
             uvec2 controller;
             float rotation;
             uint vertexMode;
+            uint mapChannel;
+        };
+
+        struct TextureSegment {
+            TextureLayer layers[4];
+            uint blender;
+            uint connecter;
+            uint enabled;
         };
 
         layout (std140, binding = 0) uniform JGLVertexDrawData {
@@ -220,12 +280,16 @@ namespace jgl {
             uint jglTextureCount;
             int jglLightingMode;
             int jglLightCount;
+            uint blendingMode;
             vec4 jglObjectColor;
             vec3 jglCameraNormal;
         };
 
         layout (std140, binding = 2) uniform TextureDrawData {
-            TextureLayer layers[16];
+            TextureLayer layers[0x30];
+            uint sep[0x30];
+            uint link[0x30];
+            uint connect[0x30];
         };
 
         vec4 jglGetVertexInput() {
@@ -374,7 +438,14 @@ namespace jgl {
                 jglTranslationMatrix(pixelsToScreen(jglObjectPosition, jglWindowSize), pixelsToScreen(jglCameraPosition.xy, jglWindowSize), jglWindowSize)
             );
 
-            for (uint i = 0u; i < jglTextureCount; ++i) jglTexCoords[i] = jglGetTextureCoordinates(i);
+            uint tLoaded = 0u;
+
+            for (uint i = 0u; i < jglTextureCount; ++i) {
+                if (i < 24) jglTexCoords0[i] = jglGetTextureCoordinates(i);
+                else jglTexCoords1[i - 24] = jglGetTextureCoordinates(i - 24);
+            }
+
+            jglVertexAsTexture = worldToTexture(convertedVertex.xy);
 
             return jglCoords;
         }
@@ -408,12 +479,13 @@ namespace jgl {
     GLFWwindow *win;
     Window *window = NULL;
     bool opens = true;
-    Shader defaultShader;
+    ShaderFile *defaultFragmentShader, *defaultVertexShader, *mainFragmentShader, *mainVertexShader;
+    Shader *defaultShader;
     Position cameraPos = {0, 0};
     Core *core = NULL;
     long double fTime, fTimeLim = 0;
+    float glVersion = 0;
     jutil::Timer timer;
-    GLuint shaderF, shaderV;
 
     GLFWwindow *getWindowHandle() {
         return win;
@@ -529,6 +601,15 @@ namespace jgl {
             core->errorHandler(3, "GLEW failed to initialize");
         }
 
+        int vers, vers2;
+
+        glGetIntegerv(GL_MAJOR_VERSION, &vers);
+        glGetIntegerv(GL_MINOR_VERSION, &vers2);
+
+        unsigned decs = jutil::String(vers2).size();
+
+        glVersion =  (float)vers + ((float)vers2 / (float)(jml::pow(10u, decs)));
+
         int nModes = 0;
         const GLFWvidmode *modes = glfwGetVideoModes(glfwGetPrimaryMonitor(), &nModes);
 
@@ -547,22 +628,20 @@ namespace jgl {
         glfwSetWindowFocusCallback(win, focusHandle);
         glfwSetCursorEnterCallback(win, cursorFocusHandle);
 
-        shaderF = glCreateShader(GL_FRAGMENT_SHADER);
-        glShaderSource(shaderF, 1, &FRAGMENT_SHADER, NULL);
-        shaderV = glCreateShader(GL_VERTEX_SHADER);
-        glShaderSource(shaderV, 1, &VERTEX_SHADER, NULL);
-
         window = new Window(dimensions);
 
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-        glCompileShader(shaderF);
-        glCompileShader(shaderV);
-
         glEnable(GL_MULTISAMPLE);
 
-        defaultShader = Shader(jutil::String(VERTEX_MAIN), jutil::String(FRAGMENT_MAIN));
+        defaultVertexShader = new ShaderFile(ShaderFileType::VERTEX, jutil::String(VERTEX_SHADER));
+        defaultFragmentShader = new ShaderFile(ShaderFileType::FRAGMENT, jutil::String(FRAGMENT_SHADER));
+
+        mainVertexShader = new ShaderFile(ShaderFileType::VERTEX, jutil::String(VERTEX_MAIN));
+        mainFragmentShader = new ShaderFile(ShaderFileType::FRAGMENT, jutil::String(FRAGMENT_MAIN));
+
+        defaultShader = new Shader({mainVertexShader, mainFragmentShader});
         setVsyncEnabled(false);
 
         glfwSetWindowPos(win, position[0], position[1]);
@@ -572,6 +651,8 @@ namespace jgl {
         glViewport(0.0f, -(((float)width - (float)height) / 2.0f), (float)width, (float)height * ((float)width / (float)height));
 
         initializeScreens();
+        textInit();
+        initTextures();
         timer.start();
 
     }
@@ -581,19 +662,15 @@ namespace jgl {
         else glfwSwapInterval(0);
     }
 
-    GLuint getDefaultFragmentShader() {
-        return shaderF;
+    ShaderFile *getDefaultFragmentShader() {
+        return defaultFragmentShader;
     }
-    GLuint getDefaultVertexShader() {
-        return shaderV;
+    ShaderFile *getDefaultVertexShader() {
+        return defaultVertexShader;
     }
 
-    Shader getDefaultShader() {
+    Shader *getDefaultShader() {
         return defaultShader;
-    }
-
-    void setDefaultShader(const Shader &s) {
-        defaultShader = s;
     }
 
     void setMouseVisible(bool v) {
@@ -609,13 +686,26 @@ namespace jgl {
         core->gameLoop();
     }
 
+    float getOpenGLVersion() {
+        return glVersion;
+    }
+
     int end(int code) {
-        opens = false;
-        glUseProgram(0);
-        glBindTexture(GL_TEXTURE_2D, 0);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glfwSetWindowShouldClose(win, true);
-        glfwTerminate();
+        if (opens) {
+            textDestroy();
+            destroyTextures();
+            delete defaultFragmentShader;
+            delete defaultVertexShader;
+            delete mainFragmentShader;
+            delete mainVertexShader;
+            delete defaultShader;
+            opens = false;
+            glUseProgram(0);
+            glBindTexture(GL_TEXTURE_2D, 0);
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+            glfwSetWindowShouldClose(win, true);
+            glfwTerminate();
+        }
         return code;
     }
 
@@ -706,45 +796,3 @@ namespace jgl {
         return cameraPos;
     }
 }
-
-/*vec2 startingCoords;
-            vec2 texSize;
-
-            if (layers[id].vertexMode == JGL_VERTEXMODE_MANUAL) {
-                startingCoords = textureToWorld(jglTexCoordInput);
-                texSize = jglObjectSize.xy; // CALC TEXTURE AREA
-            } else if (layers[id].vertexMode == JGL_VERTEXMODE_RELATIVE) {
-                startingCoords = jglVertexCoordInput.xy;
-            } else if (layers[id].vertexMode == JGL_VERTEXMODE_ABSOLUTE) {
-                startingCoords = jglVertexCoordInput.xy;
-            }
-
-            vec2 transformedTextureVertex;
-
-            vec2 ratio = jglObjectSize / layers[id].size;
-
-            float oAspect = jglObjectSize.x / jglObjectSize.y;
-
-            vec2 texFactor = texSize / jglObjectSize;
-
-            mat2 rotateV = mat2(
-                vec2(cos(layers[id].rotation), -sin(layers[id].rotation)),
-                vec2(sin(layers[id].rotation), cos(layers[id].rotation))
-            );
-
-            mat2 scaleV = mat2(
-                vec2(1.0f / texFactor.x, 0),
-                vec2(0, 1.0f / texFactor.y)
-            );
-
-            mat2 projectV = mat2(
-                vec2(1.0f, 0),
-                vec2(0, 2.0f / (oAspect + oAspect))
-            );
-
-            transformedTextureVertex = (startingCoords + pixelsToScreen(vec2(layers[id].position.x * -2, layers[id].position.y * 2), jglObjectSize)) * (projectV * rotateV) * scaleV;
-
-            transformedTextureVertex.y /= (2.0f / (oAspect + oAspect));
-
-            vec2 conversion = worldToTexture(vec2(transformedTextureVertex.x, transformedTextureVertex.y));
-            return conversion;*/
