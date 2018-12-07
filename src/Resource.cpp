@@ -28,6 +28,10 @@ namespace jgl {
         }
         if (!loadedResources[_type].findByKey(_id)) {
             jutil::out << "(" << static_cast<uint32_t>(static_cast<uint8_t>(_type)) << ") " << _id << " : created." << jutil::endl;
+
+            //I would appreciate if anyone could explain to me why my resource system doesn't work if this empty loop is abscent?
+            for (auto it = loadedResources.begin(); it != loadedResources.end(); ++it) for (auto it2 = (*it).begin(); it2 != (*it).end(); ++it2) {}
+
             loadedResources[_type].insert(_id, 1);
         } else {
             jutil::out << "(" << static_cast<uint32_t>(static_cast<uint8_t>(_type)) << ") " << _id << " : " << loadedResources[_type][_id] << " -> ";
@@ -38,8 +42,12 @@ namespace jgl {
     }
 
     bool Resource::release() {
+
         if (!loadedResources[_type].findByKey(_id)) {
-            getCore()->errorHandler(0xa0f, "Attempted to release jgl resource which jgl never acquired!");
+            jutil::String errcode = jutil::String("Attempted to release jgl resource which jgl never acquired! (") + jutil::String(_type) + jutil::String(", ") + jutil::String(_id) + jutil::String(")");
+            char errArr[errcode.size() + 1];
+            errcode.array(errArr);
+            getCore()->errorHandler(0xa0f, errArr);
             return false;
         }
 

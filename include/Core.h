@@ -12,6 +12,7 @@ namespace jgl {
         virtual bool update() = 0;
         virtual void eventHandler(Event);
         virtual void errorHandler(uint16_t, const char*);
+        virtual void infoHandler(const char*);
         virtual void gameLoop();
     protected:
         Window *const _window;

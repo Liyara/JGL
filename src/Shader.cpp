@@ -3,7 +3,7 @@
 
 namespace jgl {
 
-    const jutil::String shaderVersion = "440 core";
+    const jutil::String shaderVersion = "400 core";
 
     Shader *Shader::active;
 
@@ -21,6 +21,11 @@ namespace jgl {
 
         generate();
     }
+
+    jutil::String &ShaderFile::underlyingData() {
+        return fileData;
+    }
+
     ShaderFile::ShaderFile(ShaderFileType t, const jutil::String &str) : Resource(ResourceType::SHADER),  fType(t), fileData(str) {
         generate();
     }
@@ -48,7 +53,7 @@ namespace jgl {
             "mat4 jglProjectionMatrix(float);\n"
             "vec4 jglTransformVertex(vec4, mat4, mat4, mat4, mat4);\n"
             "vec2 jglGetTextureCoordinates();\n"
-            "layout (std140, binding = 0) uniform JGLVertexDrawData {\n"
+            "layout (std140) uniform JGLVertexDrawData {\n"
             "    float jglObjectRotation;\n"
             "    vec2 jglWindowSize;\n"
             "    vec2 jglObjectPosition;\n"
@@ -64,9 +69,10 @@ namespace jgl {
         fileData.replace(jutil::String("#include jglFragmentShader"), jutil::String(
             "vec4 fromTexture(uint, vec2);\n"
             "vec4 jglFragmentApplyLighting(vec4, int);\n"
+
             "vec4 sampleTextures();\n"
             "vec4 jglFragmentShader();\n"
-            "layout (std140, binding = 1) uniform JGLFragmentDrawData {\n"
+            "layout (std140) uniform JGLFragmentDrawData {\n"
             "    uint jglTextureCount;\n"
             "    int jglLightingMode;\n"
             "    int jglLightCount;\n"
@@ -75,6 +81,24 @@ namespace jgl {
             "    vec3 jglCameraNormal;\n"
             "};\n"
         ));
+
+        size_t lti;
+
+        if (fileData.find(jutil::String("#load textures"), &lti)) {
+            fileData.replace(jutil::String("#load textures"), jutil::String(""));
+            size_t numTextureArrays = CompositeTexture::availableSlots() / 12;
+            size_t numSegments = numTextureArrays * 3;
+            if (numTextureArrays) {
+                if (GLEW_ARB_bindless_texture) {
+                    fileData.insert(jutil::String("#define JGL_BINDLESS_TEXTURES ") + jutil::String(CompositeTexture::availableSlots()) + jutil::String("\n"), lti);
+                } else {
+                    fileData.insert(jutil::String("#define JGL_BOUND_TEXTURES") + jutil::String(CompositeTexture::availableSlots()) + jutil::String("\n"), lti);
+
+                }
+            }
+        }
+
+
 
         char strProto[fileData.size() + 1];
         fileData.array(strProto);
@@ -88,6 +112,7 @@ namespace jgl {
         GLint status;
         glGetShaderiv(_id, GL_COMPILE_STATUS, &status);
         if (status == GL_FALSE) {
+            jutil::out << "what?" << jutil::endl;
             GLint infoLogLength;
             glGetShaderiv(_id, GL_INFO_LOG_LENGTH, &infoLogLength);
 
@@ -103,8 +128,11 @@ namespace jgl {
 
             jutil::err << "Compile failure in " << strShaderType << " shader: \n" << strInfoLog << jutil::endl;
             delete[] strInfoLog;
+        } else {
+            jutil::out << "Compile of shader file " << _id << " successful." << jutil::endl;
         }
         acquire();
+
         return *this;
     }
     Resource &ShaderFile::destroy() {
@@ -178,6 +206,8 @@ namespace jgl {
             glGetProgramInfoLog(_id, infoLogLength, NULL, strInfoLog);
             jutil::err << "Link failure: " << strInfoLog << jutil::endl;
             delete[] strInfoLog;
+        } else {
+            jutil::out << "Link of shader program " << _id << " successful." << jutil::endl;
         }
 
         glDetachShader(_id, getDefaultVertexShader()->id());
@@ -185,10 +215,32 @@ namespace jgl {
 
         for (auto &i: files) glDetachShader(_id, i->id());
         acquire();
+
+        //This will set some jgl uniforms after building so that these operation don;t clog the render process.
+        if (!GLEW_ARB_bindless_texture) {
+            jutil::Queue<jutil::String> arrayNames = {
+                "minimumTextureSlots",
+                "standardTextureSlots",
+                "extendedTextureSlots",
+                "maximumTextureSlots"
+            };
+            jutil::String var;
+            for (int i = 0; i < CompositeTexture::availableSlots(); ++i) {
+                var = arrayNames[i / 12] + jutil::String("[") + jutil::String(i % 12) + jutil::String("]");
+                char varArr[var.size() + 1];
+                var.array(varArr);
+                setUniform(varArr, i);
+            }
+        }
+
         return *this;
     }
     Resource &Shader::destroy() {
         glDeleteProgram(_id);
         return *this;
     }
+
+     void initShaders() {
+
+     }
 }

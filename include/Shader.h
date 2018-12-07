@@ -69,6 +69,8 @@ namespace jgl {
 
         const ShaderFileType &shaderType() const;
 
+        jutil::String &underlyingData();
+
         virtual ~ShaderFile();
     private:
         Resource &generate() override;
@@ -160,6 +162,8 @@ namespace jgl {
         Resource &generate() override;
         Resource &destroy() override;
     };
+
+    void initShaders();
 }
 
 #endif // JGL_SHADER_H

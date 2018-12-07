@@ -16,6 +16,8 @@ namespace jgl {
         jutil::err << id << ": " << msg << jutil::endl;
     }
 
+    void Core::infoHandler(const char*) {}
+
     void Core::gameLoop() {
         while (open()) {
             _window->clear();

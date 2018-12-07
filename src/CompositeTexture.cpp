@@ -13,7 +13,8 @@ namespace jgl {
     BlendingMode CompositeTexture::JGL_NULL_BLENDER(static_cast<BlendingMode>(-1));
 
     void initTextures() {
-        dmi = new Image(WordArray{0, 0, 0, 0}, 2);
+        WordArray data{0, 0, 0, 0};
+        dmi = new Image(data, 2);
         dmt = new Texture(*dmi);
     }
 
@@ -22,7 +23,7 @@ namespace jgl {
         delete dmi;
     }
 
-    TextureLayerLink::TextureLayerLink(uint32_t index, TextureLayerLink *p, TextureLayerLink *n) : layers(TextureLayer(index), TextureLayer(index + 1), TextureLayer(index + 2), TextureLayer(index + 3)), previous(p), next(n), map(index / 4) {
+    TextureLayerLink::TextureLayerLink(uint32_t index, TextureLayerLink *p, TextureLayerLink *n) : layers(TextureLayer(index), TextureLayer(index + 1), TextureLayer(index + 2), TextureLayer(index + 3)), previous(p), next(n), map(index / 4), linkBlender(STACKING), connectBlender(STACKING) {
         map.setTexture(dmt);
     }
 
@@ -138,6 +139,12 @@ namespace jgl {
                 return true;
             } else return false;
         }
+    }
+
+    TextureLayer &CompositeTexture::getMap(size_t slot) {
+        if (slot < MAP_B) {
+            return segments[slot].map;
+        } else return JGL_NULL_LAYER;
     }
 
     TextureLayer &CompositeTexture::operator[](uint32_t i) {

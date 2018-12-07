@@ -32,8 +32,8 @@ namespace jgl {
 
         Image();
         Image(const Dimensions&, const Color& = 0);
-        Image(const ByteArray&, const Dimensions& = JGL_IMAGE_1D, size_t = 4);
-        Image(const WordArray&, const Dimensions& = JGL_IMAGE_1D);
+        Image(ByteArray&, const Dimensions& = JGL_IMAGE_1D, size_t = 4);
+        Image(WordArray&, const Dimensions& = JGL_IMAGE_1D);
         Image(ColorArray&, const Dimensions& = JGL_IMAGE_1D);
         Image(const Image&);
         Image(Image&&);
@@ -43,8 +43,8 @@ namespace jgl {
 
         ColorArray getImageData(const Position& = 0, const Dimensions& = JGL_AUTOMATIC_SIZE) const;
 
-        Image &setImageData(const ByteArray&, const Dimensions& = JGL_IMAGE_CURRENT_SIZE, size_t = 4);
-        Image &setImageData(const WordArray&, Dimensions = JGL_IMAGE_CURRENT_SIZE);
+        Image &setImageData(ByteArray&, const Dimensions& = JGL_IMAGE_CURRENT_SIZE, size_t = 4);
+        Image &setImageData(WordArray&, Dimensions = JGL_IMAGE_CURRENT_SIZE);
         Image &setImageData(ColorArray&, const Dimensions& = JGL_IMAGE_CURRENT_SIZE);
 
         Image &blit(Image&, const Position& = 0, const Position& = 0, const Dimensions& = JGL_AUTOMATIC_SIZE) const;
@@ -58,8 +58,8 @@ namespace jgl {
         virtual ~Image();
 
     private:
-        void createGLImage(const WordArray&);
-        void updateGLImage(WordArray);
+        void createGLImage(WordArray&);
+        void updateGLImage(WordArray&);
 
         Dimensions snapToSize(const Dimensions&) const;
         Position snapToGrid(const Position&) const;
@@ -75,8 +75,14 @@ namespace jgl {
         bool acquired;
 
         friend class jgl::Texture;
+        friend void initImages();
+
+        static ResourceID cpySource;
+        static ResourceID cpyDest;
 
     };
+
+    void initImages();
 }
 
 #endif // JGL_IMAGE_H

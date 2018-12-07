@@ -57,21 +57,18 @@ namespace jgl {
         s.array(ss);
         int nrChannels;
         jml::Vector2u ssize;
-        uint8_t *sData = stbi_load(ss, reinterpret_cast<int*>(&(ssize[0])), reinterpret_cast<int*>(&(ssize[1])), &nrChannels, STBI_default);
+        uint8_t *sData = stbi_load(ss, reinterpret_cast<int*>(&(ssize[0])), reinterpret_cast<int*>(&(ssize[1])), &nrChannels, STBI_default);\
 
-        rawData.setImageData(ByteArray(sData, (ssize[0] * ssize[1]) * nrChannels), ssize, nrChannels);
+        ByteArray bData(sData, (ssize[0] * ssize[1]) * nrChannels);
+
+        rawData.setImageData(bData, ssize, nrChannels);
         size = rawData.getSize();
-
-        if (rawData._handle) {
-            glMakeTextureHandleNonResidentARB(rawData._handle);
-            glGetTextureSamplerHandleARB(rawData._id, rawData._handle);
-            glMakeTextureHandleResidentARB(rawData._handle);
-        }
 
         return *this;
     }
     Texture &Texture::load(const Image &img) {
-        rawData.setImageData(static_cast<WordArray>(img.getImageData()), img.getSize());
+        WordArray dat = static_cast<WordArray>(img.getImageData());
+        rawData.setImageData(dat, img.getSize());
         size = rawData.getSize();
         return *this;
     }

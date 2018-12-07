@@ -59,6 +59,7 @@ namespace jgl {
         bool clear();
 
         bool setMap(Texture*, size_t);
+        TextureLayer &getMap(size_t);
 
         TextureLayer &operator[](uint32_t);
 

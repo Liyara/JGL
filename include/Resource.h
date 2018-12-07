@@ -13,7 +13,7 @@ namespace jgl {
         SHADER,         // Shader.h         0
         BUFFER,         // Mesh.h           1
         QUERY,          // Query.h          2
-        PROGRAM,        // Sader.h          0
+        PROGRAM,        // Shader.h         0
         SAMPLER,        //                  4
         SYNC,           // Synchronizer.h   3
         VERTEX_ARRAY,   //                  4

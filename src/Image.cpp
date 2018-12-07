@@ -3,20 +3,41 @@
 
 namespace jgl {
 
+    ResourceID Image::cpySource;
+    ResourceID Image::cpyDest;
+
     Image::Image() : Scalable(0), Resource(ResourceType::TEXTURE), acquired(false) {
-        createGLImage(WordArray());
+        WordArray arr;
+        createGLImage(arr);
+    }
+    void initImages() {
+        ResourceID *src = &Image::cpySource, *dest = &Image::cpyDest;
+        glGenFramebuffers(1, src);
+        glGenFramebuffers(1, dest);
     }
 
-    Image::Image(const Dimensions &d, const Color &c) : Image(WordArray(static_cast<uint32_t>(c), d.x() * d.y()), d) {}
+    Image::Image(const Dimensions &d, const Color &c) : Scalable(d), Resource(ResourceType::TEXTURE), acquired(false) {
+        WordArray data(static_cast<uint32_t>(c), d.x() * d.y());
+        if (d == Dimensions JGL_IMAGE_1D) size.x() = data.size();
+        createGLImage(data);
+    }
 
-    Image::Image(const ByteArray &arr, const Dimensions &d, size_t ch) : Image(packBytes(arr, ch), d) {}
+    Image::Image(ByteArray &arr, const Dimensions &d, size_t ch) : Scalable(d), Resource(ResourceType::TEXTURE), acquired(false) {
+        WordArray data = packBytes(arr, ch);
+        if (d == Dimensions JGL_IMAGE_1D) size.x() = data.size();
+        createGLImage(data);
+    }
 
-    Image::Image(const WordArray &arr, const Dimensions &d) : Scalable(d), Resource(ResourceType::TEXTURE), acquired(false) {
+    Image::Image(WordArray &arr, const Dimensions &d) : Scalable(d), Resource(ResourceType::TEXTURE), acquired(false) {
         if (d == Dimensions JGL_IMAGE_1D) size.x() = arr.size();
         createGLImage(arr);
     }
 
-    Image::Image(ColorArray &arr, const Dimensions &d) : Image(static_cast<WordArray>(arr), d) {}
+    Image::Image(ColorArray &arr, const Dimensions &d) : Scalable(d), Resource(ResourceType::TEXTURE), acquired(false) {
+        WordArray data(static_cast<WordArray>(arr));
+        if (d == Dimensions JGL_IMAGE_1D) size.x() = data.size();
+        createGLImage(data);
+    }
 
     Image::Image(Image &&img) : Scalable(img.size), Resource(img._type, img._id), acquired(false) {
         if (img.acquired) {
@@ -50,18 +71,21 @@ namespace jgl {
     Resource &Image::destroy() {
         glDeleteTextures(1, &_id);
         if (_handle) glMakeTextureHandleNonResidentARB(_handle);
+        _handle  = 0;
+        _id = 0;
+        acquired = false;
         return *this;
     }
 
     Scalable &Image::scale(const jml::Vector2f &s) {
-        auto dat = getImageData();
+        WordArray dat = static_cast<WordArray>(getImageData());
         Scalable::scale(s);
         updateGLImage(dat);
         return *this;
     }
 
     Scalable &Image::setSize(const Dimensions &d) {
-        auto dat = getImageData();
+        WordArray dat = static_cast<WordArray>(getImageData());
         Scalable::setSize(d);
         updateGLImage(dat);
         return *this;
@@ -83,7 +107,8 @@ namespace jgl {
     }
 
     Image::Image(const Image &img) : Scalable(img.size), Resource(img._type), acquired(false) {
-        createGLImage(img.getImageData());
+        WordArray dat = static_cast<WordArray>(img.getImageData());
+        createGLImage(dat);
     }
 
     const Image &Image::operator=(const Image &img) {
@@ -91,7 +116,10 @@ namespace jgl {
 
         size = img.size;
 
-        if (img.acquired) createGLImage(img.getImageData());
+        if (img.acquired) {
+            WordArray dat = static_cast<WordArray>(img.getImageData());
+            createGLImage(dat);
+        }
         else acquired = false;
 
         return *this;
@@ -121,11 +149,12 @@ namespace jgl {
     }
 
 
-    Image &Image::setImageData(const ByteArray &arr, const Dimensions &d, size_t ch) {
-        return setImageData(packBytes(arr, ch), d);
+    Image &Image::setImageData(ByteArray &arr, const Dimensions &d, size_t ch) {
+        WordArray dat = packBytes(arr, ch);
+        return setImageData(dat, d);
     }
 
-    Image &Image::setImageData(const WordArray &arr, Dimensions dim) {
+    Image &Image::setImageData(WordArray &arr, Dimensions dim) {
         if (dim.x() == JGL_AUTOMATIC_SIZE || dim.x() == JGL_IMAGE_CURRENT_SIZE) dim.x() = size.x();
         if (dim.y() == JGL_AUTOMATIC_SIZE || dim.y() == JGL_IMAGE_CURRENT_SIZE) dim.y() = size.y();
         size = dim;
@@ -134,7 +163,8 @@ namespace jgl {
     }
 
     Image &Image::setImageData(ColorArray &arr, const Dimensions &d) {
-        return setImageData(static_cast<WordArray>(arr), d);
+        WordArray dat = static_cast<WordArray>(arr);
+        return setImageData(dat, d);
     }
 
     Image &Image::clear(const Color &c, const Position &_p, const Dimensions &_dim) {
@@ -225,28 +255,37 @@ namespace jgl {
         auto posOnDest = img.snapToGrid(_posOnDest);
         fixSize(&dim, posOnSource);
         img.fixSize(&dim, posOnDest);
-        glCopyImageSubData(_id, GL_TEXTURE_2D, 0, posOnSource.x(), posOnSource.y(), 0, img._id, GL_TEXTURE_2D, 0, posOnDest.x(), posOnDest.y(), 0, dim.x(), dim.y(), 1);
+        if (GLEW_ARB_copy_image) glCopyImageSubData(_id, GL_TEXTURE_2D, 0, posOnSource.x(), posOnSource.y(), 0, img._id, GL_TEXTURE_2D, 0, posOnDest.x(), posOnDest.y(), 0, dim.x(), dim.y(), 1);
+        else {
+            glBindFramebuffer(GL_FRAMEBUFFER, cpySource);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _id, 0);
+            glBindFramebuffer(GL_FRAMEBUFFER, cpyDest);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, img._id, 0);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, cpySource);
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, cpyDest);
+            glBlitFramebuffer(posOnSource.x(), posOnSource.y(), posOnSource.y() + dim.x(), posOnSource.y() + dim.y(), posOnDest.x(), posOnDest.y(), posOnDest.x() + dim.x(), posOnDest.y() + dim.y(), GL_COLOR_BUFFER_BIT, GL_NEAREST);
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+        }
         return img;
     }
 
-    void Image::createGLImage(const WordArray &arr) {
+    void Image::createGLImage(WordArray &arr) {
         generate();
         acquire();
         acquired = true;
-        updateGLImage(arr);
+        glBindTexture(GL_TEXTURE_2D, _id);
+        if (!arr.empty()) {
+            arr.reserve((size.x() * size.y()));
+            for (size_t i = arr.size(); i < (size.x() * size.y()); ++i) arr.insert(0);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, size.x(), size.y(), 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, &(arr[0]));
+        } else glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, size.x(), size.y(), 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, NULL);
+        glBindTexture(GL_TEXTURE_2D, 0);
     }
 
-    void Image::updateGLImage(WordArray arr) {
-        if (acquired) {
-            glBindTexture(GL_TEXTURE_2D, _id);
-            if (!arr.empty()) {
-                arr.reserve((size.x() * size.y()));
-                for (size_t i = arr.size(); i < (size.x() * size.y()); ++i) {
-                    arr.insert(0);
-                }
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, size.x(), size.y(), 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, &(arr[0]));
-            } else glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, size.x(), size.y(), 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, NULL);
-            glBindTexture(GL_TEXTURE_2D, 0);
-        } else createGLImage(arr);
+    void Image::updateGLImage(WordArray &arr) {
+        if (acquired) release();
+        createGLImage(arr);
     }
 }
