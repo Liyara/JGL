@@ -1,7 +1,6 @@
 #include "TextureLayer.h"
 #include "Dependencies.h"
 
-#define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
 #define FILL_TEXTURE(_dat_) glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, size.x(), size.y(), 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, &((static_cast<jutil::Queue<uint32_t> >(_dat_))[0]))
@@ -31,6 +30,10 @@ namespace jgl {
         t.size = 0;
     }
 
+    const Image &Texture::getUnderlyingImage() const {
+        return rawData;
+    }
+
     Texture &Texture::operator=(const Texture &t) {
         size = t.size;
         rawData = t.rawData;
@@ -57,7 +60,7 @@ namespace jgl {
         s.array(ss);
         int nrChannels;
         jml::Vector2u ssize;
-        uint8_t *sData = stbi_load(ss, reinterpret_cast<int*>(&(ssize[0])), reinterpret_cast<int*>(&(ssize[1])), &nrChannels, STBI_default);\
+        uint8_t *sData = stbi_load(ss, reinterpret_cast<int*>(&(ssize[0])), reinterpret_cast<int*>(&(ssize[1])), &nrChannels, STBI_default);
 
         ByteArray bData(sData, (ssize[0] * ssize[1]) * nrChannels);
 
@@ -69,6 +72,11 @@ namespace jgl {
     Texture &Texture::load(const Image &img) {
         WordArray dat = static_cast<WordArray>(img.getImageData());
         rawData.setImageData(dat, img.getSize());
+        size = rawData.getSize();
+        return *this;
+    }
+    Texture &Texture::load(Image &&img) {
+        rawData = jutil::move(img);
         size = rawData.getSize();
         return *this;
     }

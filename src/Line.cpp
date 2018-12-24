@@ -13,7 +13,6 @@ namespace jgl {
     }
     Line::Line(const Position &pa, const Position &pb, const Color &c, unsigned w) : a(pa), b(pb), thickness(w) {
         color = c;
-        drawMode = GL_LINES;
         formShape();
     }
     long double Line::area() const {

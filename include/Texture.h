@@ -3,10 +3,10 @@
 
 #include "Image.h"
 
-#define JGL_FIRST_FRAME     (unsigned)-4;
-#define JGL_LAST_FRAME      (unsigned)-3;
-#define JGL_ALL_FRAMES      (unsigned)-2;
-#define JGL_CURRENT_FRAME   (unsigned)-1;
+#define JGL_FIRST_FRAME     (unsigned)-4
+#define JGL_LAST_FRAME      (unsigned)-3
+#define JGL_ALL_FRAMES      (unsigned)-2
+#define JGL_CURRENT_FRAME   (unsigned)-1
 
 namespace jgl {
 
@@ -32,18 +32,6 @@ namespace jgl {
         RGBA    = 0x0f
     };
 
-    enum AnimationMode {
-        DEFAULT,
-        PAUSED,
-        PLAY,
-        LOOP,
-        PLAY_REVERSE,
-        LOOP_REVERSE,
-        PLAY_MIRRORED,
-        LOOP_MIRRORED,
-        RANDOM
-    };
-
     class Texture : public Scalable {
     public:
         Texture();
@@ -57,21 +45,24 @@ namespace jgl {
         Texture &operator=(const Texture&);
         Texture &operator=(Texture&&);
 
-        Image &operator*();
-        Image *operator->();
+        virtual Image &operator*();
+        virtual Image *operator->();
 
-        Texture &load(const jutil::String&);
-        Texture &load(const Image&);
-        Texture &load(const Texture&);
-        Texture &load(Texture&&);
-        Texture &load(const Shader&);
-        Texture &load(const Screen&);
+        virtual Texture &load(const jutil::String&);
+        virtual Texture &load(const Image&);
+        virtual Texture &load(const Texture&);
+        virtual Texture &load(Texture&&);
+        virtual Texture &load(Image&&);
+        virtual Texture &load(const Shader&);
+        virtual Texture &load(const Screen&);
 
-        const ResourceID &id() const;
-        const Image::Handle &handle();
+        virtual const ResourceID &id() const;
+        virtual const Image::Handle &handle();
+
+        virtual const Image &getUnderlyingImage() const;
 
         virtual ~Texture();
-    private:
+    protected:
         Image rawData;
     };
 

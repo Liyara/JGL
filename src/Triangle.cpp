@@ -2,10 +2,10 @@
 
 namespace jgl {
 
-    Triangle::Triangle(const Position &p, const Dimensions &d, const Color &c) : Object(p, d, c), type(STANDARD) {this->drawMode = GL_TRIANGLES; formShape();}
-    Triangle::Triangle(const Position &p, const Dimensions &d, Type t) : Object(p, d, Color::White), type(t) {this->drawMode = GL_TRIANGLES; formShape();}
-    Triangle::Triangle(const Position &p, const Dimensions &d, Type t, const Color &c) : Object(p, d, c), type(t) {this->drawMode = GL_TRIANGLES; formShape();}
-    Triangle::Triangle(const Position &p, const Dimensions &d, const Color &c, Type t) : Object(p, d, c), type(t) {this->drawMode = GL_TRIANGLES; formShape();}
+    Triangle::Triangle(const Position &p, const Dimensions &d, const Color &c) : Object(p, d, c), type(STANDARD) { formShape();}
+    Triangle::Triangle(const Position &p, const Dimensions &d, Type t) : Object(p, d, Color::White), type(t) { formShape();}
+    Triangle::Triangle(const Position &p, const Dimensions &d, Type t, const Color &c) : Object(p, d, c), type(t) { formShape();}
+    Triangle::Triangle(const Position &p, const Dimensions &d, const Color &c, Type t) : Object(p, d, c), type(t) { formShape();}
 
     jutil::Queue<jml::Vertex> Triangle::generateVertices() const {
 

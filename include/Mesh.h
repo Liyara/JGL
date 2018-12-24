@@ -4,75 +4,46 @@
 #include "Resource.h"
 #include <Maths.h>
 #include <Container/Map.hpp>
+#include <Container/Set.hpp>
+#include <Core/NonCopyable.h>
 
 namespace jgl {
 
-    /*class Vertex;
-
     typedef jutil::Queue<jml::Vertex> VertexField;
-    typedef jutil::Tuple<Vertex, Vertex, Vertex> VertexFace;
+    typedef jutil::Set<3, jml::Vertex> VertexFace;
+    typedef jutil::Queue<jml::LineSegment> LineMesh;
 
-    class Vertex : public jml::Vertex {
+    class Mesh : public Resource, public jutil::NonCopyable {
     public:
-        using jml::Vertex::Vertex;
-        virtual ~Vertex();
-    private:
-        jutil::Map<size_t, jutil::Queue<float> > attributes;
-    };
-
-    struct Face {
-        Face(const VertexField&, size_t = 0);
-        Face(const VertexFace&, size_t = 0);
-
-        VertexFace vertices;
-    };
-
-    class Mesh {
-    public:
-        Mesh(VertexField verts) {
-            Face face;
-            for (size_t i = 0; i < verts.size(); ++i) {
-                if (face.vertices.size() < 3) {
-                    face.vertices.insert(verts[i]);
-                } else {
-                    faces.insert(face);
-                }
-            }
-        }
-    private:
-        jutil::Queue<Face> faces;
-    };*/
-
-    /*typedef
-
-    class Mesh {
-    public:
+        Mesh(VertexField);
         Mesh();
-        Mesh(const VertexField&);
-        Mesh(const Mesh&);
-        Mesh (Mesh&&);
 
-        Mesh &operator=(const Mesh&);
-        Mesh &operator=(Mesh&&);
+        Mesh &build(VertexField);
 
-        Mesh &clear();
-        Mesh &addVertex(const Vertex&);
-        Mesh &addVertex(const Vertex&, size_t);
-        Mesh &addVertices(const VertexField&);
-        Mesh &addVertices(const VertexField&, size_t);
-        Mesh &addProperty(size_t, const jutil::Queue<jutil::Queue<float> >&);
-        jutil::Queue<float> getVertexProperty(size_t, size_t);
-        Mesh &setVertexProperty(size_t, const jutil::Queue<float>&);
+        bool valid() const;
+        size_t vertexCount() const;
 
-        size_t vertices() const;
-        const VertexField &getVertices() const;
-    private:
+        const jutil::Queue<VertexFace> &getFaces() const;
+
+
+        static jutil::Queue<VertexFace> generateFaces(VertexField&);
+        static bool vertexIsPrincipal(jml::Vertex*, VertexField*);
+        static LineMesh connectPoints(VertexField&);
+
+        static jml::Vertex *nextVertex(jml::Vertex*, VertexField*);
+        static jml::Vertex *previousVertex(jml::Vertex*, VertexField*);
+
+        virtual ~Mesh();
+
+    protected:
         Resource &generate() override;
-        Resource &release() override;
-        VertexField vertices;
-        jutil::Map<size_t, size_t> propertyIdnentities;
-        jutil::Map<Vertex*, jutil::Queue<float> > properties;
-    };*/
+        Resource &destroy() override;
+
+    private:
+        jutil::Queue<VertexFace> faces;
+        jutil::Queue<float> vertexData;
+    };
+
 }
 
 #endif // JGL_MESH_H

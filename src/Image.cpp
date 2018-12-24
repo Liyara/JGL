@@ -39,10 +39,24 @@ namespace jgl {
         createGLImage(data);
     }
 
+    Image::Image(const Image &img) : Scalable(img.size), Resource(img._type), acquired(false) {
+        WordArray dat = static_cast<WordArray>(img.getImageData());
+        createGLImage(dat);
+    }
+
     Image::Image(Image &&img) : Scalable(img.size), Resource(img._type, img._id), acquired(false) {
         if (img.acquired) {
-            acquire();
-            acquired = true;
+
+            _id = img._id;
+            size = img.size;
+            _handle = img._handle;
+
+            if (img.acquired) {
+                acquire();
+                acquired = true;
+            } else acquired = false;
+
+            img.size = 0;
         }
     }
 
@@ -96,6 +110,7 @@ namespace jgl {
 
         _id = img._id;
         size = img.size;
+        _handle = img._handle;
 
         if (img.acquired) {
             acquire();
@@ -104,11 +119,6 @@ namespace jgl {
 
         img.size = 0;
         return *this;
-    }
-
-    Image::Image(const Image &img) : Scalable(img.size), Resource(img._type), acquired(false) {
-        WordArray dat = static_cast<WordArray>(img.getImageData());
-        createGLImage(dat);
     }
 
     const Image &Image::operator=(const Image &img) {

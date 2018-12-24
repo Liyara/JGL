@@ -12,6 +12,8 @@
 #include "Text.h"
 #include "Line.h"
 #include "Shader.h"
+#include "AnimatedTexture.h"
+
 
 #define JGL_POS_MIDDLE 0xffa012e
 

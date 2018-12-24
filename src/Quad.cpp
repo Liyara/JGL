@@ -3,7 +3,6 @@
 
 namespace jgl {
     Quad::Quad(const Position &p, const Dimensions &d, const Color &c) : Object(p, d, c) {
-        this->drawMode = GL_QUADS;
         formShape();
     }
 
@@ -14,11 +13,10 @@ namespace jgl {
     jutil::Queue<jml::Vertex> Quad::generateVertices() const {
 
         jutil::Queue<jml::Vertex> polygon = {
-            {-1.f, -1.f},
-            {1.f, -1.f},
-            {1.f, 1.f},
-            {-1.f, 1.f}
-
+            {-1, 1},
+            {1, 1},
+            {1, -1},
+            {-1, -1}
         };
 
         return polygon;

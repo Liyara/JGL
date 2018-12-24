@@ -23,6 +23,8 @@ namespace jgl {
 
     /// Represents and image which can be loaded with raw pixel data.
 
+    /// Please do not put raw images into a jutil::Queue, as they are slow to copy. Use Image pointers instead.
+
     class Image : public Scalable, public Resource {
     public:
 
@@ -57,9 +59,15 @@ namespace jgl {
 
         virtual ~Image();
 
-    private:
+    protected:
+        Handle _handle;
+        Resource &generate() override;
+        Resource &destroy() override;
         void createGLImage(WordArray&);
         void updateGLImage(WordArray&);
+        static ResourceID cpySource;
+        static ResourceID cpyDest;
+    private:
 
         Dimensions snapToSize(const Dimensions&) const;
         Position snapToGrid(const Position&) const;
@@ -67,19 +75,10 @@ namespace jgl {
 
         void generateHandle();
 
-        Resource &generate() override;
-        Resource &destroy() override;
-
-        Handle _handle;
-
         bool acquired;
 
         friend class jgl::Texture;
         friend void initImages();
-
-        static ResourceID cpySource;
-        static ResourceID cpyDest;
-
     };
 
     void initImages();

@@ -11,7 +11,7 @@
 
 namespace jgl {
 
-    class Object : public Renderable, public Transformable, public Resource {
+    class Object : public Renderable, public Transformable {
     public:
 
         Object(const Position&, const Dimensions&, const Color&);
@@ -25,8 +25,6 @@ namespace jgl {
         virtual uint8_t getOutline() const;
         virtual Object &setOutlineColor(const Color&);
         virtual Object &useShader(Shader*);
-        virtual Object &setMode(GLenum);
-        virtual GLenum getMode() const;
         virtual jutil::Queue<jml::Vertex> getVertices();
         virtual Object &setOrigin(const jml::Vector2f&);
         virtual const jml::Vector2f &getOrigin() const;
@@ -43,16 +41,13 @@ namespace jgl {
     protected:
 
         virtual jutil::Queue<jml::Vertex> generateVertices() const = 0;
-        virtual jutil::Queue<jml::Vertex> generateTextureVertices() const;
         virtual Object &formShape();
-        virtual void loadPolygon();
 
         Texture *singleTexture;
         CompositeTexture *multiTexture;
 
         Material material;
 
-        jutil::Queue<float> unpackedPolygon;
         jutil::Queue<GLuint> uniforms;
         jutil::Queue<uint32_t> ubos;
 
@@ -63,14 +58,12 @@ namespace jgl {
 
         Color color, outlineColor;
 
-        size_t vertexCount;
-        unsigned components;
         uint8_t outline, tMode;
         uint32_t fbo;
 
         bool formed, fill, valid;
 
-        GLenum drawMode;
+        Mesh mesh;
 
         struct FragmentDrawData;
         struct VertexDrawData;
@@ -80,9 +73,7 @@ namespace jgl {
 
     private:
 
-        jutil::Queue<jml::Vertex> polygon, textureObject;
-        Resource &generate();
-        Resource &destroy();
+        jutil::Queue<jml::Vertex> textureObject;
 
     };
 }
