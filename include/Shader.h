@@ -55,6 +55,13 @@ SHADER_OP_END
 
 namespace jgl {
 
+    enum UniformBlock {
+        UBO_VERTEX,
+        UBO_FRAGMENT,
+        UBO_TEXTURE,
+        UBO_TEXTURE_POOL
+    };
+
     enum ShaderFileType : uint32_t {
         FRAGMENT    = 0x8B30,
         GEOMETRY    = 0x8DD9,
@@ -81,6 +88,7 @@ namespace jgl {
 
     class Shader : public Resource {
     public:
+
         Shader(const jutil::Queue<ShaderFile*>&);
         Shader(const Shader&);
 
@@ -152,6 +160,8 @@ namespace jgl {
         bool hasUniform(const char*) const;
         GLuint getUniformID(const char*) const;
 
+        GLuint getPrimaryUBO(UniformBlock) const;
+
         static void setActive(Shader*);
         static Shader *getActive();
         virtual ~Shader();
@@ -161,6 +171,9 @@ namespace jgl {
 
         Resource &generate() override;
         Resource &destroy() override;
+
+        ///JGL Uniform Block data
+        GLuint vUniformIndex, fUniformIndex, tUniformIndex, tpUniformIndex;
     };
 
     void initShaders();

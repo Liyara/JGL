@@ -1,6 +1,10 @@
 #include "jgl.h"
 
 namespace jgl {
+
+    GLvoid *meshBuffer;
+
+
         Mesh::Mesh(VertexField f) : Resource(BUFFER) {
             build(f);
         }
@@ -9,9 +13,10 @@ namespace jgl {
             return faces;
         }
 
-        jutil::Queue<VertexFace> Mesh::generateFaces(VertexField &points) {
+        jutil::Queue<VertexFace> Mesh::generateFaces(VertexField points) {
             jutil::Queue<VertexFace> r;
             size_t index = 0;
+            r.reserve((points.size() % 3) + 1);
             while (points.size() > 3) {
                 bool found = false;
                 jml::Vertex *it;
@@ -96,7 +101,7 @@ namespace jgl {
 
         Mesh::Mesh() : Resource(BUFFER) {}
 
-        Mesh &Mesh::build(VertexField f) {
+        Mesh &Mesh::build(const VertexField &f) {
             if (!valid()) {
                 faces = generateFaces(f);
             } else getCore()->errorHandler(0xefa, "Attempt to re-build immutable type Mesh.");
@@ -107,7 +112,9 @@ namespace jgl {
         }
 
         Resource &Mesh::generate() {
-            glGenBuffers(1, &_id);
+            if (_id) release();
+            if (GLEW_ARB_direct_state_access) glCreateBuffers(1, &_id);
+            else glGenBuffers(1, &_id);
 
             vertexData.clear();
             vertexData.reserve(vertexCount() * 4);
@@ -115,18 +122,19 @@ namespace jgl {
             for (auto &i: faces) {
                 for (auto &ii: i) {
                     for (auto &iii: ii) {
-                        vertexData.insert(iii);
+                        vertexData.insert(static_cast<float>(iii));
                     }
                 }
             }
 
-            glBindBuffer(GL_ARRAY_BUFFER, _id);
+            size_t meshAllocation = vertexCount() * 4 * sizeof(float);
 
-            glBufferData(GL_ARRAY_BUFFER, vertexCount() * 4 * sizeof(float), vertexData.begin(), GL_STATIC_DRAW);
+            if (GLEW_ARB_direct_state_access) glNamedBufferData(_id, meshAllocation, vertexData.begin(), GL_DYNAMIC_DRAW);
+            else {
+                glBindBuffer(GL_ARRAY_BUFFER, _id);
+                glBufferData(GL_ARRAY_BUFFER, meshAllocation, vertexData.begin(), GL_DYNAMIC_DRAW);
+            }
 
-            glEnableVertexAttribArray(0);
-
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
         }
 
         size_t Mesh::vertexCount() const {

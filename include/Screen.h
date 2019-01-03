@@ -10,8 +10,9 @@
 namespace jgl {
 
     class Texture;
+    class Image;
 
-    class Screen : public Renderable, public Translatable, public Scalable {
+    class Screen : public Renderable, public Translatable, public Scalable, public Resource {
     public:
 
         Screen(const Position&, const Dimensions&);
@@ -28,18 +29,23 @@ namespace jgl {
         virtual void useLightSource(const LightSource&);
         virtual jutil::Queue<LightSource> getLightsInScene() const;
 
-        Texture asTexture() const;
+        virtual const Image &readPixels() const;
 
         virtual ~Screen();
     protected:
-        uint32_t buffer, bTexture, vbo;
         Color clearColor;
-        jutil::Queue<float> vertices;
-        friend class Object;
         Position cameraPosition;
         int lightingMode;
         jutil::Queue<LightSource> lights;
+        Mesh canvas;
+        Image *texture;
+
+        Resource &generate() override;
+        Resource &destroy() override;
+
         Screen();
+
+        friend class Object;
     private:
 
     };

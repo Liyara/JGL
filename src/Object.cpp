@@ -6,15 +6,15 @@ namespace jgl {
 
     jutil::Timer t;
 
-    const jutil::Queue<const char*> UNIFORM_NAMES = {
+    /*const jutil::Queue<const char*> UNIFORM_NAMES = {
         "material.ambient",     // 0
         "material.diffuse",     // 1
         "material.specular",    // 2
         "maetrial.shine"        // 3
-    };
+    };*/
 
     GLuint uboF, uboV, uboT, uboTP;
-    unsigned fUniformIndex, vUniformIndex, tUniformIndex, sActiveP = 0, tpUniformIndex;
+    unsigned sActiveP = 0;
     GLvoid *uboData = NULL;
     Shader *sActive = NULL;
     jml::Vector4f cNorms;
@@ -93,9 +93,9 @@ namespace jgl {
                 fDrawData = {0};
                 vDrawData = {0};
                 tDrawData = {0};
-                INIT_UBO(uboF, fDrawData, fUniformIndex);
-                INIT_UBO(uboV, vDrawData, vUniformIndex);
-                INIT_UBO(uboT, tDrawData, tUniformIndex);
+                INIT_UBO(uboF, fDrawData, shader->getPrimaryUBO(UBO_FRAGMENT));
+                INIT_UBO(uboV, vDrawData, shader->getPrimaryUBO(UBO_VERTEX));
+                INIT_UBO(uboT, tDrawData, shader->getPrimaryUBO(UBO_TEXTURE));
                 if (GLEW_ARB_bindless_texture) {
                     int numTextures = (CompositeTexture::availableSlots() + (CompositeTexture::availableSlots() / 4)) * 2;
                     textureDataSize = sizeof(Image::Handle) * numTextures;
@@ -104,7 +104,7 @@ namespace jgl {
                     glBindBuffer(GL_UNIFORM_BUFFER, uboTP);
                     glBufferData(GL_UNIFORM_BUFFER, textureDataSize, NULL, GL_DYNAMIC_DRAW);
                     glBindBuffer(GL_UNIFORM_BUFFER, 0);
-                    glBindBufferRange(GL_UNIFORM_BUFFER, tpUniformIndex, uboTP, 0, textureDataSize);
+                    glBindBufferRange(GL_UNIFORM_BUFFER, shader->getPrimaryUBO(UBO_TEXTURE_POOL), uboTP, 0, textureDataSize);
                 }
                 initUniforms = true;
             }
@@ -202,9 +202,10 @@ namespace jgl {
 
     void Object::render(const Screen *screen) {
 
-        if (fbo != screen->buffer) {
-            glBindFramebuffer(GL_FRAMEBUFFER, screen->buffer);
-            fbo = screen->buffer;
+        if (fbo != screen->id()) {
+
+            glBindFramebuffer(GL_FRAMEBUFFER, screen->id());
+            fbo = screen->id();
         }
 
         sActive = Shader::getActive();
@@ -341,8 +342,7 @@ namespace jgl {
 
         mesh.build(generateVertices());
 
-        if (mesh.valid()) formed = true;
-        else formed = false;
+        formed = mesh.valid();
 
         return *this;
     }
@@ -370,22 +370,8 @@ namespace jgl {
 
     Object &Object::useShader(Shader *s) {
         shader = s;
-        uniforms.clear();
-        uniforms.reserve(UNIFORM_NAMES.size());
-        for (auto &i: UNIFORM_NAMES) uniforms.insert(shader->getUniformID(i));
 
-        vUniformIndex = glGetUniformBlockIndex(shader->id(), "JGLVertexDrawData");
-        fUniformIndex = glGetUniformBlockIndex(shader->id(), "JGLFragmentDrawData");
-        tUniformIndex = glGetUniformBlockIndex(shader->id(), "TextureDrawData");
-        tpUniformIndex = glGetUniformBlockIndex(shader->id(), "TexturePool");
-        if (fUniformIndex == GL_INVALID_INDEX || vUniformIndex == GL_INVALID_INDEX || tpUniformIndex == GL_INVALID_INDEX) {
-            getCore()->errorHandler(0xa29, "Invalid shaders loaded! Could not locate JGL Uniform blocks.");
-        } else {
-            glUniformBlockBinding(shader->id(), vUniformIndex, 1);
-            glUniformBlockBinding(shader->id(), fUniformIndex, 0);
-            glUniformBlockBinding(shader->id(), tUniformIndex, 2);
-            glUniformBlockBinding(shader->id(), tpUniformIndex, 3);
-        }
+
         return *this;
     }
 

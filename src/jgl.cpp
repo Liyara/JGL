@@ -664,6 +664,9 @@ namespace jgl {
         glPolygonMode(GL_FRONT, GL_FILL);
 
         glViewport(0.0f, -(((float)width - (float)height) / 2.0f), (float)width, (float)height * ((float)width / (float)height));
+
+        glEnableVertexAttribArray(0);
+
         initImages();
         initializeScreens();
         textInit();

@@ -2,7 +2,11 @@
 
 namespace jgl {
 
-    jutil::Map<ResourceType, jutil::Map<ResourceID, size_t> > loadedResources;
+    typedef jutil::Pair<ResourceID, size_t> IDCounter;
+    typedef jutil::Queue<IDCounter> IDList;
+    typedef jutil::Queue<IDList> ResourceManager;
+
+    ResourceManager loadedResources;
 
     ResourceType &operator++(ResourceType &t) {
         if (t == __RESOURCE_TYPE_SIZE__) return t;
@@ -10,7 +14,7 @@ namespace jgl {
     }
 
     Resource::Resource(ResourceType t, ResourceID id) : _id(id), _type(t) {
-        if (loadedResources.empty()) for (ResourceType i = TEXTURE; i < __RESOURCE_TYPE_SIZE__; ++i) loadedResources.obtainKey(i);
+        if (loadedResources.empty()) for (ResourceType i = TEXTURE; i < __RESOURCE_TYPE_SIZE__; ++i) loadedResources.insert(IDList());
     }
 
     const ResourceType &Resource::type() const {
@@ -18,6 +22,16 @@ namespace jgl {
     }
 
     bool Resource::acquire() {
+
+        size_t *loaded = nullptr;
+
+        for (auto &i: loadedResources[_type]) {
+            if (i.first() == _id) {
+                loaded = &i.second();
+                break;
+            }
+        }
+
         if (_type == __RESOURCE_TYPE_SIZE__ || _type == UNINITIALIZED) {
             getCore()->errorHandler(0xaf2, "Attempted to acquire a jgl resource of invalid type!");
             return false;
@@ -26,24 +40,32 @@ namespace jgl {
             getCore()->errorHandler(0xaf3, "Attempted to acquire a jgl resource without first generating it!");
             return false;
         }
-        if (!loadedResources[_type].findByKey(_id)) {
-            jutil::out << "(" << static_cast<uint32_t>(static_cast<uint8_t>(_type)) << ") " << _id << " : created." << jutil::endl;
+        if (!loaded) {
+            //jutil::out << "(" << static_cast<uint32_t>(static_cast<uint8_t>(_type)) << ") " << _id << " : created." << jutil::endl;
 
-            //I would appreciate if anyone could explain to me why my resource system doesn't work if this empty loop is abscent?
-            for (auto it = loadedResources.begin(); it != loadedResources.end(); ++it) for (auto it2 = (*it).begin(); it2 != (*it).end(); ++it2) {}
+            loadedResources[_type].insert(IDCounter(_id, 1));
 
-            loadedResources[_type].insert(_id, 1);
         } else {
-            jutil::out << "(" << static_cast<uint32_t>(static_cast<uint8_t>(_type)) << ") " << _id << " : " << loadedResources[_type][_id] << " -> ";
-            ++(loadedResources[_type][_id]);
-            jutil::out << loadedResources[_type][_id] << jutil::endl;
+            //jutil::out << "(" << static_cast<uint32_t>(static_cast<uint8_t>(_type)) << ") " << _id << " : " << loadedResources[_type][_id] << " -> ";
+            //++(loadedResources[_type][_id]);
+            *loaded += 1;
+            //jutil::out << loadedResources[_type][_id] << jutil::endl;
         }
         return true;
     }
 
     bool Resource::release() {
 
-        if (!loadedResources[_type].findByKey(_id)) {
+        size_t *loaded = nullptr;
+
+        for (auto &i: loadedResources[_type]) {
+            if (i.first() == _id) {
+                loaded = &i.second();
+                break;
+            }
+        }
+
+        if (!loaded) {
             jutil::String errcode = jutil::String("Attempted to release jgl resource which jgl never acquired! (") + jutil::String(_type) + jutil::String(", ") + jutil::String(_id) + jutil::String(")");
             char errArr[errcode.size() + 1];
             errcode.array(errArr);
@@ -51,10 +73,10 @@ namespace jgl {
             return false;
         }
 
-        if (loadedResources[_type][_id] > 0) {
-            jutil::out << "(" << static_cast<uint32_t>(static_cast<uint8_t>(_type)) << ") " << _id << " : " << loadedResources[_type][_id] << " -> ";
-            --(loadedResources[_type][_id]);
-            jutil::out << loadedResources[_type][_id];
+        if (loaded && *loaded > 0) {
+            //jutil::out << "(" << static_cast<uint32_t>(static_cast<uint8_t>(_type)) << ") " << _id << " : " << loadedResources[_type][_id] << " -> ";
+            *loaded -= 1;
+            //jutil::out << loadedResources[_type][_id];
         } else {
             getCore()->errorHandler(0xa0f1, "Attempted to release jgl resource which was already released by other means!");
             loadedResources[_type].erase(_id);
@@ -62,12 +84,11 @@ namespace jgl {
             return false;
         }
 
-        if (loadedResources[_type][_id] == 0) {
-            loadedResources[_type].erase(_id);
+        if (loaded && *loaded == 0) {
             destroy();
-            jutil::out << "(destroyed)";
+            //jutil::out << "(destroyed)";
         }
-        jutil::out << jutil::endl;
+        //jutil::out << jutil::endl;
         return true;
     }
 

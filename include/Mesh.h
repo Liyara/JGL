@@ -18,7 +18,7 @@ namespace jgl {
         Mesh(VertexField);
         Mesh();
 
-        Mesh &build(VertexField);
+        Mesh &build(const VertexField&);
 
         bool valid() const;
         size_t vertexCount() const;
@@ -26,7 +26,7 @@ namespace jgl {
         const jutil::Queue<VertexFace> &getFaces() const;
 
 
-        static jutil::Queue<VertexFace> generateFaces(VertexField&);
+        static jutil::Queue<VertexFace> generateFaces(VertexField);
         static bool vertexIsPrincipal(jml::Vertex*, VertexField*);
         static LineMesh connectPoints(VertexField&);
 

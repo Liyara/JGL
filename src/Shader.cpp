@@ -233,7 +233,30 @@ namespace jgl {
             }
         }
 
+        vUniformIndex = glGetUniformBlockIndex(id(), "JGLVertexDrawData");
+        fUniformIndex = glGetUniformBlockIndex(id(), "JGLFragmentDrawData");
+        tUniformIndex = glGetUniformBlockIndex(id(), "TextureDrawData");
+        tpUniformIndex = glGetUniformBlockIndex(id(), "TexturePool");
+        if (fUniformIndex == GL_INVALID_INDEX || vUniformIndex == GL_INVALID_INDEX || tpUniformIndex == GL_INVALID_INDEX) {
+            getCore()->errorHandler(0xa29, "Invalid shaders loaded! Could not locate JGL Uniform blocks.");
+        } else {
+            glUniformBlockBinding(id(), vUniformIndex, 1);
+            glUniformBlockBinding(id(), fUniformIndex, 0);
+            glUniformBlockBinding(id(), tUniformIndex, 2);
+            glUniformBlockBinding(id(), tpUniformIndex, 3);
+        }
+
         return *this;
+    }
+
+    GLuint Shader::getPrimaryUBO(UniformBlock b) const {
+        switch(b) {
+            case UBO_VERTEX: return vUniformIndex;
+            case UBO_FRAGMENT: return fUniformIndex;
+            case UBO_TEXTURE: return tUniformIndex;
+            case UBO_TEXTURE_POOL: return tpUniformIndex;
+            default: return (GLuint)-1;
+        }
     }
     Resource &Shader::destroy() {
         glDeleteProgram(_id);

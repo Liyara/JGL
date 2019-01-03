@@ -1,5 +1,6 @@
 #include "Window.h"
 #include "jgl.h"
+#include <iostream>
 
 namespace jgl {
 
@@ -15,19 +16,6 @@ namespace jgl {
     Window::Window(Dimensions s) {
         if (instance) delete instance;
         instance = this;
-        clearColor = Color::Black;
-        buffer = 0;
-        bTexture = 0;
-        vbo = 0;
-        cameraPosition = 0;
-        lightingMode = -1;
-        vertices = {
-             -1.f, -1.f, 0.f, 0.f, 0.f,
-             1.f, -1.f, 0.f, 1.f, 0.f,
-             1.f, 1.f, 0.f, 1.f, 1.f,
-             -1.f, 1.f, 0.f, 0.f, 1.f
-        };
-        position = 0;
         size = s;
     }
 

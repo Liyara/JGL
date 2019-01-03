@@ -9,11 +9,9 @@ namespace jgl {
 
     jutil::Queue<jml::Vertex> Triangle::generateVertices() const {
 
-        jutil::Queue<jml::Vertex> polygon;
-
         switch(type) {
             case STANDARD: {
-                polygon = {
+                return {
                     {-1.0f, -1.0f},
                     {1.0f, -1.0f},
                     {0.0f, 1.0}
@@ -21,7 +19,7 @@ namespace jgl {
                 break;
             }
             case RIGHT: {
-                polygon = {
+                return {
                     {-1.0f, -1.0f},
                     {1.0f, 1.0f},
                     {1.0f, -1.0f}
@@ -30,8 +28,6 @@ namespace jgl {
             }
             default: break;
         }
-
-        return polygon;
     }
 
     long double Triangle::area() const {
